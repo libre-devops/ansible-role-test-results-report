@@ -1,0 +1,198 @@
+{#-
+  The human-readable report. Rendered by files/test_results_report.py, not by Ansible's template
+  module, with these filters: cell (one table cell), text (escaped text), code (inline code),
+  block (a fenced block), plural, cut (output shortened to output_limit) and number.
+  Copy it and point test_results_report_markdown_template at your copy to change the layout;
+  the data is the JSON report, as report, documented in the README.
+-#}
+{%- set s = report.summary -%}
+{%- set show_label = report.hosts | map(attribute='label') | list != report.hosts | map(attribute='host') | list -%}
+{%- macro platform(host) -%}
+{%- set f = host.facts -%}
+{{ [f.get('distribution', ''), f.get('distribution_version', '')] | select | join(' ') }}{{ (' (' ~ f.architecture ~ ')') if f.get('architecture') }}
+{%- endmacro -%}
+{%- macro check_name(result) -%}
+{{ result.name | cell }} {{ result.id | code }}
+{%- endmacro -%}
+{%- macro metrics(result) -%}
+{{ result.metrics | dictsort | map('join', '=') | join(', ') | cell }}
+{%- endmacro -%}
+# {{ report.title | text }}
+
+{% if report.verdict == 'passed' %}**Passed.**{% else %}**FAILED.**{% endif %} {{ s.hosts_passed }} of {{ s.hosts | plural('host') }} passed. {{ s.ran | plural('check') }} ran: {{ s.passed }} passed{{ (', ' ~ s.failed ~ ' failed') if s.failed }}{{ (', ' ~ (s.error | plural('error'))) if s.error }}{{ (', ' ~ (s.warning | plural('warning'))) if s.warning }}{{ (', ' ~ s.waived ~ ' waived') if s.waived }}{{ ('; ' ~ s.skipped ~ ' skipped') if s.skipped }}.
+
+{% if report.verdict == 'failed' %}
+## Why it failed
+
+{% for host in report.hosts if host.verdict == 'failed' %}
+- **{{ host.host | text }}**: {{ host.reasons | join(' ') | text }}
+{% endfor %}
+{% for reason in report.reasons %}
+- {{ reason | text }}
+{% endfor %}
+
+{% endif %}
+## Hosts
+
+| Host |{{ ' Label |' if show_label }} Platform | Verdict | Passed | Failed | Errors | Warnings | Waived | Skipped | Pass rate |
+|---|{{ '---|' if show_label }}---|---|---:|---:|---:|---:|---:|---:|---:|
+{% for host in report.hosts %}
+{% set t = host.summary %}
+| {{ host.host | cell }} |{{ (' ' ~ (host.label | cell) ~ ' |') if show_label }} {{ platform(host) | cell }} | {{ 'Passed' if host.verdict == 'passed' else '**FAILED**' }} | {{ t.passed }} | {{ t.failed }} | {{ t.error }} | {{ t.warning }} | {{ t.waived }} | {{ t.skipped }} | {{ (t.pass_rate | number ~ '%') if t.pass_rate is not none else '' }} |
+{% endfor %}
+
+{% if attention %}
+## Needs attention
+
+Failures and errors count against the verdict; warnings are failures below the {{ report.policy.fail_severity }} severity threshold.
+
+| Host | Severity | Check | Outcome | Detail |
+|---|---|---|---|---|
+{% for result in attention %}
+| {{ result.host | cell }} | {{ result.severity | capitalize }} | {{ check_name(result) }} | {{ outcome_label[result.outcome] }} | {{ result.detail | cell }} |
+{% endfor %}
+
+{% for result in attention if result.expected or result.actual or result.remediation or result.docs or result.output or result.expired_waiver %}
+{% set rows = [] %}
+{% if result.expected %}{% set _ = rows.append(['Expected', result.expected | cell]) %}{% endif %}
+{% if result.actual %}{% set _ = rows.append(['Actual', result.actual | cell]) %}{% endif %}
+{% if result.remediation %}{% set _ = rows.append(['What to do', result.remediation | cell]) %}{% endif %}
+{% if result.docs %}{% set _ = rows.append(['Documentation', result.docs | cell]) %}{% endif %}
+{% if result.expired_waiver %}{% set _ = rows.append(['Waiver', 'Expired ' ~ result.expired_waiver.expires ~ ', so not applied: ' ~ (result.expired_waiver.reason | cell)]) %}{% endif %}
+<details>
+<summary>{{ result.host | text }}: {{ result.name | text }} ({{ result.id | text }})</summary>
+
+{% if rows %}
+| | |
+|---|---|
+{% for label, value in rows %}
+| {{ label }} | {{ value }} |
+{% endfor %}
+
+{% endif %}
+{% if result.output %}
+{{ result.output | cut | block }}
+
+{% endif %}
+</details>
+{% endfor %}
+
+{% endif %}
+{% set waived = report.results | selectattr('outcome', 'equalto', 'waived') | list %}
+{% if waived %}
+## Accepted by a waiver
+
+These failed, but a waiver accepts them, so they do not count against the verdict.
+
+| Host | Severity | Check | Was | Detail | Waiver |
+|---|---|---|---|---|---|
+{% for result in waived %}
+| {{ result.host | cell }} | {{ result.severity | capitalize }} | {{ check_name(result) }} | {{ result.status | capitalize }} | {{ result.detail | cell }} | {{ result.waiver.reason | cell }}{{ (' (' ~ (result.waiver.reference | cell) ~ ')') if result.waiver.reference }}{{ (', expires ' ~ result.waiver.expires) if result.waiver.expires }} |
+{% endfor %}
+
+{% endif %}
+{% if report.comparison %}
+{% set c = report.comparison %}
+## Changes since the previous report
+
+Compared with {{ (c.previous_title or 'the previous report') | text }}{{ (', generated ' ~ c.previous_generated) if c.previous_generated }}: {{ c.regressed }} regressed, {{ c.fixed }} fixed, {{ c.new }} new, {{ c.missing | length }} no longer reported.
+
+{% set moved = report.results | selectattr('change', 'in', ['regressed', 'fixed']) | list %}
+{% if moved or c.missing %}
+| Host | Check | Before | Now |
+|---|---|---|---|
+{% for result in moved %}
+| {{ result.label | cell }} | {{ check_name(result) }} | {{ result.previous.outcome | capitalize }} | {{ outcome_label[result.outcome] }} |
+{% endfor %}
+{% for item in c.missing %}
+| {{ item.label | cell }} | {{ item.id | code }} ({{ item.suite | cell }}) | {{ (item.outcome or '') | capitalize }} | **Not reported** |
+{% endfor %}
+
+{% endif %}
+{% endif %}
+{% if not compact %}
+## All results
+
+{% for host in report.hosts %}
+### {{ host.host | text }}{{ (' (' ~ (host.label | text) ~ ')') if host.label != host.host }}
+
+{% if platform(host) %}
+{{ platform(host) | text }}{{ (', kernel ' ~ host.facts.kernel) if host.facts.get('kernel') }}.
+
+{% endif %}
+{% if host.missing %}
+No results: the host was unreachable, failed before the checks ran, or ran no checks role.
+
+{% endif %}
+{% for suite in report.suites if suite.host == host.host %}
+#### {{ suite.name | text }}
+
+{% if suite.properties %}
+| Property | Value |
+|---|---|
+{% for key, value in suite.properties | dictsort %}
+| {{ key | cell }} | {{ (value if value is string else (value | tojson)) | cell }} |
+{% endfor %}
+
+{% endif %}
+| Check | Severity | Outcome | Detail | Metrics |
+|---|---|---|---|---|
+{% for result in report.results if result.host == host.host and result.suite == suite.suite %}
+| {{ check_name(result) }} | {{ result.severity | capitalize }} | {{ outcome_label[result.outcome] }}{{ (': ' ~ (result.waiver.reason | cell)) if result.waiver }} | {{ result.detail | cell }} | {{ metrics(result) }} |
+{% endfor %}
+
+{% endfor %}
+{% endfor %}
+{% else %}
+_The full results table is left out here to keep the summary within GitHub's size limit: see the report files._
+
+{% endif %}
+## How it was judged
+
+| Setting | Value |
+|---|---|
+| Failures that count | {{ report.policy.fail_severity | capitalize }} severity and above{{ (' (lower ones are warnings)') if report.policy.fail_severity != 'info' }} |
+| Failures allowed per host | {{ report.policy.max_failures }} |
+| Minimum pass rate per host | {{ (report.policy.min_pass_rate | number ~ '%') if report.policy.min_pass_rate else 'None' }} |
+| Minimum checks run per host | {{ report.policy.min_checks }} |
+| Failed hosts allowed | {{ report.policy.max_failed_hosts }} |
+| Expected checks | {{ (report.policy.expected_checks | map('code') | join(', ')) if report.policy.expected_checks else 'None' }} |
+
+{% if report.limits %}
+### Limits
+
+| Check | Metric | Limit | Checked | Breached | Could not check |
+|---|---|---|---:|---:|---:|
+{% for limit in report.limits %}
+{% set bounds = [] %}
+{% if limit.min is not none %}{% set _ = bounds.append('at least ' ~ (limit.min | number)) %}{% endif %}
+{% if limit.max is not none %}{% set _ = bounds.append('at most ' ~ (limit.max | number)) %}{% endif %}
+{% if limit.max_increase_percent is not none %}{% set _ = bounds.append('rises at most ' ~ (limit.max_increase_percent | number) ~ '%') %}{% endif %}
+{% if limit.max_decrease_percent is not none %}{% set _ = bounds.append('falls at most ' ~ (limit.max_decrease_percent | number) ~ '%') %}{% endif %}
+| {{ limit.check | code }}{{ (' (' ~ (limit.suite | cell) ~ ')') if limit.suite != '*' }}{{ (' on ' ~ (limit.hosts | join(', ') | cell)) if limit.hosts != ['*'] }} | {{ limit.metric | code }} | {{ bounds | join(', ') }}{{ (', counts as ' ~ limit.severity) if limit.severity }} | {{ limit.evaluated }} | {{ limit.breached }} | {{ limit.not_evaluated }} |
+{% endfor %}
+
+{% endif %}
+{% if report.waivers %}
+### Waivers
+
+| Check | Reason | Reference | Expires | State | Used |
+|---|---|---|---|---|---:|
+{% for waiver in report.waivers %}
+| {{ waiver.check | code }}{{ (' (' ~ (waiver.suite | cell) ~ ')') if waiver.suite != '*' }}{{ (' on ' ~ (waiver.hosts | join(', ') | cell)) if waiver.hosts != ['*'] }} | {{ waiver.reason | cell }} | {{ waiver.reference | cell }} | {{ waiver.expires or 'Never' }} | {{ {'active': 'Applied', 'unused': 'Unused', 'expired': '**Expired**: not applied'}[waiver.state] }} | {{ waiver.matched }} |
+{% endfor %}
+
+{% endif %}
+{% if report.properties %}
+## About this run
+
+| Property | Value |
+|---|---|
+{% for key, value in report.properties | dictsort %}
+| {{ key | cell }} | {{ (value if value is string else (value | tojson)) | cell }} |
+{% endfor %}
+
+{% endif %}
+---
+
+Generated {{ report.generated }} by libre_devops.test_results_report. Outcomes: **Failed** and **Error** count against the verdict; Warning is a failure below the severity threshold; Waived is a failure a waiver accepts; Skipped did not run. The JSON report has every field.

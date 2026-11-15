@@ -1,0 +1,27 @@
+---
+# Shared by every scenario under molecule/. The role runs on the control node, so the hosts only
+# carry results: two small containers, so the report has more than one host. Run a scenario with
+# just test default (the justfile runs all platforms together; the trr- prefix keeps these
+# containers apart from other roles' tests).
+driver:
+  name: podman
+
+platforms:
+  - name: trr-rhel9
+    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: sleep infinity
+  - name: trr-debian12
+    image: docker.io/library/debian:12
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: sleep infinity
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+      interpreter_python: auto_silent
+
+verifier:
+  name: ansible

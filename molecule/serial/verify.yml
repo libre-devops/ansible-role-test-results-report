@@ -1,0 +1,14 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  vars:
+    __verify_report: >-
+      {{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') ~ '/serial/test-results.json') | from_json }}
+  tasks:
+    - name: Check the last batch left both hosts in one passing report
+      ansible.builtin.assert:
+        that:
+          - __verify_report.verdict == 'passed'
+          - __verify_report.hosts | map(attribute='host') | list == ['trr-debian12', 'trr-rhel9']
+        quiet: true

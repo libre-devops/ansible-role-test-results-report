@@ -1,0 +1,25 @@
+---
+# Test a Defender for Endpoint release on the release_test hosts and report on it. Give each host
+# a stable label (group_vars: test_results_report_host_label: rhel9) to compare with last time.
+- name: Test the release and report
+  hosts: release_test
+  become: true
+  vars:
+    test_results_report_title: "mdatp {{ release_version | default('candidate') }} release test"
+    test_results_report_dir: "{{ playbook_dir }}/artifacts/test-results"
+    test_results_report_properties:
+      release_version: "{{ release_version | default('candidate') }}"
+    test_results_report_compare_to: "{{ previous_report | default('') }}"
+    test_results_report_expected_checks:
+      - mde_linux_checks/real_time_protection
+    test_results_report_limits:
+      - check: quick_scan
+        metric: duration_seconds
+        max: 900
+  roles:
+    - role: libre_devops.mde_linux
+      vars:
+        mde_linux_manage_repository: false
+        mde_linux_onboard: false
+    - role: libre_devops.mde_linux_checks
+    - role: libre_devops.test_results_report

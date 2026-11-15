@@ -1,0 +1,61 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  vars:
+    test_results_report_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/report"
+    test_results_report_title: Molecule default
+    test_results_report_properties:
+      scenario: default
+    test_results_report_host_label: "{{ inventory_hostname | regex_replace('^trr-', '') }}"
+    test_results_report_fail_severity: medium
+    test_results_report_waivers:
+      - check: accepted_failure
+        reason: A known failure in the test fixture
+        reference: TEST-1
+    test_results_report_limits:
+      - check: timed
+        metric: duration_seconds
+        max: 60
+    test_results_report_github_step_summary: false
+  tasks:
+    - name: Leave results as a checks role would
+      ansible.builtin.set_fact:
+        demo_checks_test_results:
+          schema: libre_devops.test_results/v1
+          suite: demo_checks
+          name: Demo checks
+          started: "2026-11-15T10:00:00Z"
+          finished: "2026-11-15T10:01:00Z"
+          properties:
+            product_version: 1.2.3
+          checks:
+            - id: passes
+              name: The product is installed
+              status: passed
+              severity: critical
+              detail: version 1.2.3
+            - id: timed
+              name: A scan completes
+              status: passed
+              severity: high
+              metrics:
+                duration_seconds: 12.5
+            - id: accepted_failure
+              name: Something known to fail
+              status: failed
+              severity: high
+              detail: still broken
+            - id: cosmetic
+              name: A cosmetic check
+              status: failed
+              severity: low
+              detail: below the threshold
+            - id: not_here
+              name: A check that does not apply
+              status: skipped
+              detail: not applicable on this host
+
+    - name: Report
+      ansible.builtin.include_role:
+        name: libre_devops.test_results_report

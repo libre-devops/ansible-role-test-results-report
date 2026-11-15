@@ -1,0 +1,11 @@
+---
+# A critical failure on one host fails that host, with its reasons, and the other carries on; with
+# test_results_report_enforce false the same results write the report and the play carries on.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - verify
+    - destroy

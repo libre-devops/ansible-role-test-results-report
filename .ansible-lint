@@ -1,0 +1,11 @@
+---
+profile: production
+exclude_paths:
+  - .ansible/
+  - .cache/
+  - .github/
+  - .venv/
+# The example playbook runs the checks roles this role reports on; they are not installed here.
+mock_roles:
+  - libre_devops.mde_linux
+  - libre_devops.mde_linux_checks

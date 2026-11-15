@@ -1,0 +1,63 @@
+---
+- name: Leave results with a critical failure on one host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Leave results as a checks role would
+      ansible.builtin.set_fact:
+        demo_checks_test_results:
+          suite: demo_checks
+          checks:
+            - id: protection
+              name: Protection is on
+              status: "{{ 'failed' if inventory_hostname == 'trr-debian12' else 'passed' }}"
+              severity: critical
+              detail: "{{ 'protection is off' if inventory_hostname == 'trr-debian12' else 'protection is on' }}"
+
+- name: Enforced, the report fails the host that failed
+  hosts: all
+  gather_facts: false
+  vars:
+    test_results_report_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/enforced"
+    test_results_report_github_step_summary: false
+  tasks:
+    - name: Report, expecting the failed host to stop
+      block:
+        - name: Report
+          ansible.builtin.include_role:
+            name: libre_devops.test_results_report
+
+        - name: Fail, because the report did not stop the failed host
+          ansible.builtin.fail:
+            msg: The report passed results with a critical failure.
+          when: inventory_hostname == 'trr-debian12'
+      rescue:
+        - name: Check the report stopped only the failed host, saying why
+          ansible.builtin.assert:
+            that:
+              - inventory_hostname == 'trr-debian12'
+              - ansible_failed_task.name == 'Fail the hosts that did not meet the thresholds'
+              - >-
+                ansible_failed_result.msg.startswith('trr-debian12 did not meet the thresholds:
+                1 failure at low severity or above (allowed 0): protection.')
+            quiet: true
+
+- name: Not enforced, the report is written and the play goes on
+  hosts: all
+  gather_facts: false
+  vars:
+    test_results_report_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/reported"
+    test_results_report_enforce: false
+    test_results_report_github_step_summary: false
+  tasks:
+    - name: Report
+      ansible.builtin.include_role:
+        name: libre_devops.test_results_report
+
+    - name: Check the outcome is in the fact
+      ansible.builtin.assert:
+        that:
+          - test_results_report_result.verdict == 'failed'
+          - test_results_report_result.hosts['trr-debian12'].verdict == 'failed'
+          - test_results_report_result.hosts['trr-rhel9'].verdict == 'passed'
+        quiet: true

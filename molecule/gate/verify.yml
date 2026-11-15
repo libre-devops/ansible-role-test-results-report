@@ -1,0 +1,20 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check both reports say which host failed and why
+      ansible.builtin.assert:
+        that:
+          - __verify_report.verdict == 'failed'
+          - __verify_failed.host == 'trr-debian12'
+          - "__verify_failed.reasons == ['1 failure at low severity or above (allowed 0): protection.']"
+        quiet: true
+      vars:
+        __verify_report: >-
+          {{ lookup('ansible.builtin.file', lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY')
+             ~ '/' ~ item ~ '/test-results.json') | from_json }}
+        __verify_failed: "{{ __verify_report.hosts | selectattr('verdict', 'equalto', 'failed') | first }}"
+      loop:
+        - enforced
+        - reported

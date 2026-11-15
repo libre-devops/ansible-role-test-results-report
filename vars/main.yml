@@ -1,0 +1,17 @@
+---
+# The host facts each host's results carry into the report, when facts were gathered: enough to
+# say what the results were measured on (a memory figure means little without the VM's size).
+__test_results_report_fact_keys:
+  - architecture
+  - distribution
+  - distribution_major_version
+  - distribution_version
+  - kernel
+  - memtotal_mb
+  - os_family
+  - processor_vcpus
+  - product_name
+  - virtualization_role
+  - virtualization_type
+
+__test_results_report_host_schema: libre_devops.test_results_host/v1

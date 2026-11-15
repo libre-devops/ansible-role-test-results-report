@@ -1,0 +1,34 @@
+---
+galaxy_info:
+  namespace: libre_devops
+  role_name: test_results_report
+  author: Craig Thacker
+  company: Libre DevOps
+  description: >-
+    Collect the results checks roles leave on each host into one report people can read and
+    pipelines can parse (JSON, Markdown, JUnit XML), judged against thresholds, limits and waivers
+  license: MIT
+  min_ansible_version: "2.16"
+  issue_tracker_url: https://github.com/libre-devops/ansible-role-test-results-report/issues
+  # It runs on the control node only, so the managed hosts can be anything Ansible reaches.
+  platforms:
+    - name: EL
+      versions:
+        - all
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: SLES
+      versions:
+        - all
+  galaxy_tags:
+    - testing
+    - reporting
+    - junit
+    - compliance
+    - quality
+
+dependencies: []

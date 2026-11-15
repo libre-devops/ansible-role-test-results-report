@@ -1,0 +1,37 @@
+# Development tools only. The role itself has no Python dependencies beyond ansible-core's own
+# (the report script uses the standard library and Jinja2).
+[project]
+name = "ansible-role-test-results-report"
+version = "0.0.0"
+description = "Development tools for the libre_devops.test_results_report Ansible role"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "ansible-core>=2.21,<2.22",
+  "ansible-lint>=26.10,<27",
+  "jsonschema>=4.23,<5",
+  "molecule>=26.10,<27",
+  "molecule-plugins[podman]>=26.10,<27",
+  "pytest>=8.3,<10",
+  "ruff>=0.12,<1",
+  "yamllint>=1.38,<2",
+  "zizmor>=1.16,<2",
+]
+
+[tool.uv]
+package = false
+
+# Only resolve releases at least a week old, so a freshly published bad release is not picked up.
+exclude-newer = "7 days"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]

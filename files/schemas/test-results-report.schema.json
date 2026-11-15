@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/libre-devops/ansible-role-test-results-report/blob/main/files/schemas/test-results-report.schema.json",
+  "title": "libre_devops test results report, version 1",
+  "description": "The JSON report libre_devops.test_results_report writes. Every key is always present (null when it has no value), so a pipeline can read it without guarding every field. Three flat tables, hosts, suites and results, share the host name as their key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "generator", "title", "generated", "verdict", "reasons", "summary", "properties", "policy", "waivers", "limits", "comparison", "hosts", "suites", "results"],
+  "properties": {
+    "schema": { "const": "libre_devops.test_results_report/v1" },
+    "generator": { "const": "libre_devops.test_results_report" },
+    "title": { "type": "string" },
+    "generated": { "type": "string", "format": "date-time" },
+    "verdict": { "$ref": "#/$defs/verdict" },
+    "reasons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Why the run failed as a whole (too many failed hosts, no hosts). Each host's own reasons are in hosts[].reasons."
+    },
+    "summary": {
+      "allOf": [{ "$ref": "#/$defs/summary" }],
+      "type": "object",
+      "required": ["hosts", "hosts_passed", "hosts_failed"],
+      "properties": {
+        "hosts": { "type": "integer", "minimum": 0 },
+        "hosts_passed": { "type": "integer", "minimum": 0 },
+        "hosts_failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "properties": { "type": "object", "description": "test_results_report_properties: what was tested, where, by which pipeline run." },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fail_severity", "max_failures", "min_pass_rate", "min_checks", "max_failed_hosts", "expected_checks"],
+      "properties": {
+        "fail_severity": { "$ref": "#/$defs/severity" },
+        "max_failures": { "type": "integer", "minimum": 0 },
+        "min_pass_rate": { "type": "number", "minimum": 0, "maximum": 100 },
+        "min_checks": { "type": "integer", "minimum": 0 },
+        "max_failed_hosts": { "type": "integer", "minimum": 0 },
+        "expected_checks": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check", "suite", "hosts", "reason", "reference", "expires", "state", "matched"],
+        "properties": {
+          "check": { "type": "string" },
+          "suite": { "type": "string" },
+          "hosts": { "type": "array", "items": { "type": "string" } },
+          "reason": { "type": "string" },
+          "reference": { "type": ["string", "null"] },
+          "expires": { "type": ["string", "null"], "format": "date" },
+          "state": {
+            "enum": ["active", "expired", "unused"],
+            "description": "active: applied to at least one result. unused: in date, but nothing it selects failed. expired: past its date, so not applied; the results it would have covered count."
+          },
+          "matched": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "limits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check", "suite", "hosts", "metric", "min", "max", "max_increase_percent", "max_decrease_percent", "severity", "evaluated", "breached", "not_evaluated"],
+        "properties": {
+          "check": { "type": "string" },
+          "suite": { "type": "string" },
+          "hosts": { "type": "array", "items": { "type": "string" } },
+          "metric": { "type": "string" },
+          "min": { "type": ["number", "null"] },
+          "max": { "type": ["number", "null"] },
+          "max_increase_percent": { "type": ["number", "null"] },
+          "max_decrease_percent": { "type": ["number", "null"] },
+          "severity": { "oneOf": [{ "$ref": "#/$defs/severity" }, { "type": "null" }] },
+          "evaluated": { "type": "integer", "minimum": 0 },
+          "breached": { "type": "integer", "minimum": 0 },
+          "not_evaluated": { "type": "integer", "minimum": 0, "description": "Results that ran but did not report the metric: each is an error." }
+        }
+      }
+    },
+    "comparison": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["compared_to", "previous_title", "previous_generated", "new", "fixed", "regressed", "unchanged", "missing"],
+          "properties": {
+            "compared_to": { "type": ["string", "null"] },
+            "previous_title": { "type": ["string", "null"] },
+            "previous_generated": { "type": ["string", "null"] },
+            "new": { "type": "integer", "minimum": 0 },
+            "fixed": { "type": "integer", "minimum": 0 },
+            "regressed": { "type": "integer", "minimum": 0 },
+            "unchanged": { "type": "integer", "minimum": 0 },
+            "missing": {
+              "type": "array",
+              "description": "Checks the earlier report had for a host label that is in this report too, but that this report does not.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label", "suite", "id", "outcome"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "suite": { "type": "string" },
+                  "id": { "type": "string" },
+                  "outcome": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["host", "label", "collected", "facts", "missing", "summary", "reasons", "verdict"],
+        "properties": {
+          "host": { "type": "string" },
+          "label": { "type": "string" },
+          "collected": { "type": ["string", "null"] },
+          "facts": { "type": "object" },
+          "missing": { "type": "boolean", "description": "True when the play expected the host but it sent no results." },
+          "summary": { "$ref": "#/$defs/summary" },
+          "reasons": { "type": "array", "items": { "type": "string" } },
+          "verdict": { "$ref": "#/$defs/verdict" }
+        }
+      }
+    },
+    "suites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["host", "label", "suite", "name", "started", "finished", "properties", "duration_seconds"],
+        "properties": {
+          "host": { "type": "string" },
+          "label": { "type": "string" },
+          "suite": { "type": "string" },
+          "name": { "type": "string" },
+          "started": { "type": ["string", "null"] },
+          "finished": { "type": ["string", "null"] },
+          "properties": { "type": "object" },
+          "duration_seconds": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "host", "label", "suite", "id", "name", "status", "severity", "category", "detail", "expected", "actual",
+          "remediation", "docs", "output", "metrics", "duration_seconds", "reported_status", "reported_severity", "limits",
+          "waiver", "expired_waiver", "outcome", "previous", "change"
+        ],
+        "properties": {
+          "host": { "type": "string" },
+          "label": { "type": "string" },
+          "suite": { "type": "string" },
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "$ref": "#/$defs/status", "description": "After limits: a passed check that breached a limit is failed (or error, when the limit's metric was missing)." },
+          "severity": { "$ref": "#/$defs/severity", "description": "After limits: a limit's own severity applies when it alone failed the check." },
+          "reported_status": { "$ref": "#/$defs/status", "description": "As the checks role reported it." },
+          "reported_severity": { "$ref": "#/$defs/severity" },
+          "outcome": {
+            "enum": ["passed", "failed", "error", "warning", "waived", "skipped"],
+            "description": "What the result means for the verdict. Only failed and error count; warning is a failure below fail_severity; waived is a failure a waiver accepts."
+          },
+          "category": { "type": ["string", "null"] },
+          "detail": { "type": ["string", "null"] },
+          "expected": { "type": ["string", "null"] },
+          "actual": { "type": ["string", "null"] },
+          "remediation": { "type": ["string", "null"] },
+          "docs": { "type": ["string", "null"] },
+          "output": { "type": ["string", "null"] },
+          "metrics": { "type": "object", "additionalProperties": { "type": "number" } },
+          "duration_seconds": { "type": ["number", "null"] },
+          "limits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["metric", "value", "baseline", "change_percent", "severity", "breaches", "evaluated", "min", "max", "max_increase_percent", "max_decrease_percent"],
+              "properties": {
+                "metric": { "type": "string" },
+                "value": { "type": ["number", "null"] },
+                "baseline": { "type": ["number", "null"], "description": "The metric in the report compared with, for the percentage limits." },
+                "change_percent": { "type": ["number", "null"] },
+                "severity": { "oneOf": [{ "$ref": "#/$defs/severity" }, { "type": "null" }] },
+                "breaches": { "type": "array", "items": { "type": "string" } },
+                "evaluated": { "type": "boolean" },
+                "min": { "type": ["number", "null"] },
+                "max": { "type": ["number", "null"] },
+                "max_increase_percent": { "type": ["number", "null"] },
+                "max_decrease_percent": { "type": ["number", "null"] }
+              }
+            }
+          },
+          "waiver": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/applied_waiver" }] },
+          "expired_waiver": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/applied_waiver" }] },
+          "previous": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["outcome", "status", "metrics"],
+                "properties": {
+                  "outcome": { "type": ["string", "null"] },
+                  "status": { "type": ["string", "null"] },
+                  "metrics": { "type": "object" }
+                }
+              }
+            ]
+          },
+          "change": { "enum": ["new", "fixed", "regressed", "unchanged", null] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "verdict": { "enum": ["passed", "failed"] },
+    "status": { "enum": ["passed", "failed", "error", "skipped"] },
+    "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+    "summary": {
+      "type": "object",
+      "required": ["passed", "failed", "error", "warning", "waived", "skipped", "total", "ran", "pass_rate"],
+      "properties": {
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "waived": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "ran": { "type": "integer", "minimum": 0, "description": "total less skipped." },
+        "pass_rate": {
+          "type": ["number", "null"],
+          "description": "Percentage of the checks that ran whose outcome is passed or waived. null when none ran."
+        }
+      }
+    },
+    "applied_waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "reference", "expires"],
+      "properties": {
+        "reason": { "type": "string" },
+        "reference": { "type": ["string", "null"] },
+        "expires": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

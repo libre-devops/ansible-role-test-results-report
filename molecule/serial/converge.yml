@@ -1,0 +1,28 @@
+---
+- name: One host at a time
+  hosts: all
+  gather_facts: false
+  serial: 1
+  vars:
+    test_results_report_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/serial"
+    test_results_report_github_step_summary: false
+  tasks:
+    - name: Leave results as a checks role would
+      ansible.builtin.set_fact:
+        demo_checks_test_results:
+          suite: demo_checks
+          checks:
+            - id: passes
+              name: It works
+              status: passed
+
+    - name: Report
+      ansible.builtin.include_role:
+        name: libre_devops.test_results_report
+
+    - name: Check each batch's report passed and includes the hosts so far
+      ansible.builtin.assert:
+        that:
+          - test_results_report_result.verdict == 'passed'
+          - inventory_hostname in test_results_report_result.hosts
+        quiet: true

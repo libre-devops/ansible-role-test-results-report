@@ -1,0 +1,11 @@
+---
+# With serial: 1 each host is its own batch, as with parallel per-host runs: the first batch's
+# report must not count the second host as missing, and the last leaves both in one report.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - verify
+    - destroy

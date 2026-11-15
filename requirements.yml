@@ -1,0 +1,5 @@
+---
+# Collections for the tests only. The role itself needs nothing beyond ansible-core.
+collections:
+  - name: containers.podman
+    version: ">=1.16.0,<2.0.0"

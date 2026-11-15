@@ -1,0 +1,13 @@
+---
+# Two hosts leave results as a checks role would: passes, a measured check under its limit, a
+# waived failure, a failure below the severity threshold and a skip. The report must pass, and
+# verify reads every file it wrote on the control node, the JSON against the published schema.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

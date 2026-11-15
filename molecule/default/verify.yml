@@ -1,0 +1,76 @@
+---
+- name: Verify
+  hosts: localhost
+  gather_facts: false
+  vars:
+    __verify_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/report"
+    __verify_report: "{{ lookup('ansible.builtin.file', __verify_dir ~ '/test-results.json') | from_json }}"
+    __verify_markdown: "{{ lookup('ansible.builtin.file', __verify_dir ~ '/test-results.md') }}"
+    __verify_schema: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/files/schemas/test-results-report.schema.json"
+  tasks:
+    - name: Validate the JSON report against the published schema
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -c
+          - import json, sys, jsonschema; jsonschema.validate(json.load(open(sys.argv[1])), json.load(open(sys.argv[2])))
+          - "{{ __verify_dir }}/test-results.json"
+          - "{{ __verify_schema }}"
+      changed_when: false
+
+    - name: Check the verdict, the hosts and every outcome
+      ansible.builtin.assert:
+        that:
+          - __verify_report.verdict == 'passed'
+          - __verify_report.summary.hosts == 2
+          - __verify_report.hosts | map(attribute='label') | sort == ['debian12', 'rhel9']
+          - __verify_report.hosts | map(attribute='facts.distribution') | select | list | length == 2
+          - __verify_report.properties.scenario == 'default'
+          - __verify_outcomes == ['passed', 'passed', 'waived', 'warning', 'skipped'] * 2
+          - __verify_report.waivers[0].state == 'active'
+          - __verify_report.waivers[0].matched == 2
+          - __verify_report.limits[0].evaluated == 2
+        quiet: true
+      vars:
+        __verify_outcomes: "{{ __verify_report.results | map(attribute='outcome') | list }}"
+
+    - name: Read the JUnit report
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -c
+          - >-
+            import sys, xml.etree.ElementTree as ET; r = ET.parse(sys.argv[1]).getroot();
+            print(r.get('tests'), r.get('failures'), r.get('errors'), r.get('skipped'), len(r.findall('testsuite')))
+          - "{{ __verify_dir }}/test-results.xml"
+      register: __verify_junit
+      changed_when: false
+
+    - name: Check the JUnit counts
+      ansible.builtin.assert:
+        that:
+          - __verify_junit.stdout == '10 0 0 6 2'
+        fail_msg: "tests failures errors skipped testsuites: {{ __verify_junit.stdout }}"
+        quiet: true
+
+    - name: Check the Markdown report reads in order
+      ansible.builtin.assert:
+        that:
+          - __verify_markdown.startswith('# Molecule default\n\n**Passed.** 2 of 2 hosts passed.')
+          - "'## Needs attention' in __verify_markdown"
+          - "'## Accepted by a waiver' in __verify_markdown"
+          - "'A known failure in the test fixture (TEST-1)' in __verify_markdown"
+          - "'## How it was judged' in __verify_markdown"
+        quiet: true
+
+    - name: List the host files
+      ansible.builtin.find:
+        paths: "{{ __verify_dir }}/hosts"
+        patterns: "*.json"
+      register: __verify_hosts
+
+    - name: Check there is one host file per host
+      ansible.builtin.assert:
+        that:
+          - __verify_hosts.files | map(attribute='path') | map('basename') | sort == ['trr-debian12.json', 'trr-rhel9.json']
+        quiet: true

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/libre-devops/ansible-role-test-results-report/blob/main/files/schemas/test-results.schema.json",
+  "title": "libre_devops test results, version 1",
+  "description": "What a checks role leaves on each host, as a fact whose name ends in _test_results, for libre_devops.test_results_report to read. One suite per checks role.",
+  "type": "object",
+  "required": ["suite", "checks"],
+  "properties": {
+    "schema": {
+      "const": "libre_devops.test_results/v1",
+      "description": "The format and its version. Optional, but set it, so a later version of the format can tell old results apart."
+    },
+    "suite": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+$",
+      "description": "A stable id for the suite, usually the checks role's name, such as mde_linux_checks."
+    },
+    "name": {
+      "type": "string",
+      "description": "The suite's name for people. Defaults to the id."
+    },
+    "started": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the checks started (ISO 8601, UTC)."
+    },
+    "finished": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When they finished."
+    },
+    "properties": {
+      "type": "object",
+      "description": "Facts about what was tested on this host, shown with the suite: the product version, its configuration and so on. Keep values short."
+    },
+    "checks": {
+      "type": "array",
+      "description": "One entry per check, in the order to show them. Check ids are unique within the suite.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "description": "A stable id. Waivers, limits and comparisons with earlier reports select checks by it, so never reuse one for a different check."
+          },
+          "name": {
+            "type": "string",
+            "description": "What the check proves, as a statement that is true when it passes, such as \"Real-time protection is enabled\"."
+          },
+          "status": {
+            "enum": ["passed", "failed", "error", "skipped"],
+            "description": "passed and failed: the check ran and the answer was yes or no. error: the check could not get an answer (a command failed or timed out). skipped: it did not apply; say why in detail."
+          },
+          "severity": {
+            "enum": ["critical", "high", "medium", "low", "info"],
+            "default": "medium",
+            "description": "How much a failure matters. The report's fail_severity decides which severities count against the verdict."
+          },
+          "category": {
+            "type": "string",
+            "description": "A grouping such as installation, protection, stability or performance."
+          },
+          "detail": {
+            "type": "string",
+            "description": "One line saying what was found, for the report's tables. For a skipped check, why it was skipped."
+          },
+          "expected": {
+            "type": "string",
+            "description": "What a pass looks like."
+          },
+          "actual": {
+            "type": "string",
+            "description": "What was seen."
+          },
+          "remediation": {
+            "type": "string",
+            "description": "What to do when it fails."
+          },
+          "docs": {
+            "type": "string",
+            "description": "A link to the documentation for the failure."
+          },
+          "output": {
+            "type": "string",
+            "description": "Evidence: command output, a log excerpt. The JSON report keeps 64 KiB of it, the Markdown report output_limit characters."
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Numbers the check measured, for limits and comparisons. Put the unit in the name, Prometheus style: duration_seconds, memory_mib, cpu_percent."
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "How long the check took."
+          }
+        }
+      }
+    }
+  }
+}

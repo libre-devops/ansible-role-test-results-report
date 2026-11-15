@@ -1,0 +1,129 @@
+---
+# Each host writes its results to <dir>/hosts/<host>.json on the control node, then one task
+# builds the report from every host file in the directory (files/test_results_report.py) and
+# the play fails if the report does. Everything here runs on the control node.
+
+- name: Say why there is no report in check mode
+  ansible.builtin.debug:
+    msg: Check mode, so the checks did not really run and no report is written.
+  run_once: true
+  when: ansible_check_mode
+
+- name: Write the report
+  when: not ansible_check_mode
+  vars:
+    __test_results_report_dir: >-
+      {{ test_results_report_dir if test_results_report_dir is abs
+         else (playbook_dir ~ '/' ~ test_results_report_dir) }}
+    # Delegated tasks run under the controller's own Python, whatever the host uses.
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  block:
+    - name: Check the named result facts exist
+      ansible.builtin.assert:
+        that:
+          - test_results_report_facts | reject('in', vars) | list | length == 0
+        fail_msg: >-
+          test_results_report_facts names facts this host does not have:
+          {{ test_results_report_facts | reject('in', vars) | join(', ') }}. Did the checks role run on it?
+        quiet: true
+      when: test_results_report_facts | length > 0
+
+    - name: Find this host's results
+      ansible.builtin.set_fact:
+        __test_results_report_names: >-
+          {{ test_results_report_facts if test_results_report_facts | length > 0
+             else query('ansible.builtin.varnames', '^.+_test_results$') | sort }}
+
+    - name: Create the report directory on the control node
+      ansible.builtin.file:
+        path: "{{ __test_results_report_dir }}/hosts"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Write this host's results to the report directory
+      ansible.builtin.copy:
+        dest: "{{ __test_results_report_dir }}/hosts/{{ inventory_hostname | regex_replace('[^A-Za-z0-9_.-]', '_') }}.json"
+        content: "{{ __test_results_report_host | to_nice_json }}\n"
+        mode: "0644"
+      vars:
+        __test_results_report_host:
+          schema: "{{ __test_results_report_host_schema }}"
+          host: "{{ inventory_hostname }}"
+          label: "{{ test_results_report_host_label | string }}"
+          collected: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+          facts: >-
+            {{ ansible_facts | dict2items | selectattr('key', 'in', __test_results_report_fact_keys) | items2dict }}
+          suites: "{{ __test_results_report_names | map('extract', hostvars[inventory_hostname]) | list }}"
+      delegate_to: localhost
+      become: false
+      # A report is an output, not a change to the hosts, and it differs every run.
+      changed_when: false
+
+    - name: Build the report from every host's results
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ role_path }}/files/test_results_report.py"
+        stdin: "{{ __test_results_report_request | to_json }}"
+      vars:
+        __test_results_report_request:
+          dir: "{{ __test_results_report_dir }}"
+          basename: "{{ test_results_report_basename }}"
+          formats: "{{ test_results_report_formats }}"
+          title: "{{ test_results_report_title }}"
+          properties: "{{ test_results_report_properties }}"
+          # This batch's hosts and any that failed earlier in the play, so a host that never got
+          # here is reported as sending nothing, and with serial a later batch's hosts are not.
+          expected_hosts: "{{ ansible_play_batch | union(ansible_play_hosts_all | difference(ansible_play_hosts)) }}"
+          compare_to: "{{ test_results_report_compare_to }}"
+          markdown_template: "{{ test_results_report_markdown_template }}"
+          output_limit: "{{ test_results_report_output_limit | int }}"
+          github_step_summary: >-
+            {{ lookup('ansible.builtin.env', 'GITHUB_STEP_SUMMARY', default='')
+               if test_results_report_github_step_summary | bool else '' }}
+          policy:
+            fail_severity: "{{ test_results_report_fail_severity }}"
+            max_failures: "{{ test_results_report_max_failures | int }}"
+            min_pass_rate: "{{ test_results_report_min_pass_rate | float }}"
+            min_checks: "{{ test_results_report_min_checks | int }}"
+            expected_checks: "{{ test_results_report_expected_checks }}"
+            max_failed_hosts: "{{ test_results_report_max_failed_hosts | int }}"
+            waivers: "{{ test_results_report_waivers }}"
+            limits: "{{ test_results_report_limits }}"
+      delegate_to: localhost
+      become: false
+      run_once: true
+      register: __test_results_report_run
+      changed_when: false
+
+    - name: Keep the outcome as a fact
+      ansible.builtin.set_fact:
+        test_results_report_result: "{{ __test_results_report_run.stdout | from_json }}"
+
+    - name: Show the outcome
+      ansible.builtin.debug:
+        msg: "{{ test_results_report_result.console }}"
+      run_once: true
+
+    # Each host that failed fails with its own reasons, so a block/rescue around the role sees
+    # why on that host and the others carry on. When the report failed for a reason none of
+    # this batch's hosts own (too many failed hosts across runs), every host fails with it.
+    - name: Fail the hosts that did not meet the thresholds
+      ansible.builtin.fail:
+        msg: >-
+          {{ (inventory_hostname ~ ' did not meet the thresholds: ' ~ (__test_results_report_own.reasons | join(' ')))
+             if __test_results_report_own.verdict == 'failed'
+             else ('The test results failed: ' ~ (test_results_report_result.reasons | join(' '))) }}
+          The report is in {{ __test_results_report_dir }}.
+      vars:
+        __test_results_report_own: "{{ test_results_report_result.hosts[inventory_hostname] }}"
+        __test_results_report_batch_failed: >-
+          {{ ansible_play_batch | map('extract', test_results_report_result.hosts)
+             | selectattr('verdict', 'equalto', 'failed') | list | length > 0 }}
+      when:
+        - test_results_report_enforce | bool
+        - test_results_report_result.verdict == 'failed'
+        - __test_results_report_own.verdict == 'failed' or not __test_results_report_batch_failed | bool

@@ -1,0 +1,15 @@
+---
+# Pin the roles from GitHub releases. Install with: ansible-galaxy install -r requirements.yml
+roles:
+  - name: libre_devops.mde_linux
+    src: https://github.com/libre-devops/ansible-role-mde-linux.git
+    scm: git
+    version: 1.1.1
+  - name: libre_devops.mde_linux_checks
+    src: https://github.com/libre-devops/ansible-role-mde-linux-checks.git
+    scm: git
+    version: 1.0.0
+  - name: libre_devops.test_results_report
+    src: https://github.com/libre-devops/ansible-role-test-results-report.git
+    scm: git
+    version: 1.0.0

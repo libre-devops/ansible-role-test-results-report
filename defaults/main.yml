@@ -1,0 +1,78 @@
+---
+# Where the report goes, on the control node. Give each run its own directory: hosts that an
+# earlier run left in it are part of the report too (that is how parallel per-host runs, such as
+# terraform-ansible-role's, end up in one report). A relative path is under the playbook's.
+test_results_report_dir: "{{ playbook_dir }}/test-results"
+
+# The report's file name, without an extension: test-results.json, .md and .xml.
+test_results_report_basename: test-results
+
+# Which files to write: json (everything, for pipelines), markdown (for people) and junit (for
+# CI test views).
+test_results_report_formats:
+  - json
+  - markdown
+  - junit
+
+# The report's title, and anything to record with it: what was tested, the pipeline run, the
+# commit. Shown at the end of the Markdown report and kept in the JSON.
+test_results_report_title: Test results
+test_results_report_properties: {}
+
+# The facts holding each host's results. Empty finds every fact whose name ends in _test_results,
+# which is where libre_devops checks roles put theirs (mde_linux_checks_test_results and so on).
+test_results_report_facts: []
+
+# A stable name for the host in the report, matched when comparing with an earlier report. Set it
+# per host when hosts are rebuilt with new names each run: rhel9, ubuntu2404.
+test_results_report_host_label: "{{ inventory_hostname }}"
+
+# --- Thresholds: when the report fails ----------------------------------------------------------
+
+# The lowest severity whose failures count: critical, high, medium, low or info. Failures below
+# it are reported as warnings.
+test_results_report_fail_severity: low
+
+# Failures (failed or error, at fail_severity or above, not waived) allowed per host.
+test_results_report_max_failures: 0
+
+# The lowest pass rate allowed per host, as a percentage of the checks that ran: passed and
+# waived count as passing. 0 turns it off.
+test_results_report_min_pass_rate: 0
+
+# The fewest checks that must run (not be skipped) on each host. A host where everything was
+# skipped proves nothing.
+test_results_report_min_checks: 1
+
+# Checks that must run on every host: a missing or skipped one fails the host. Each entry is a
+# check id, suite/check, or a mapping with check, suite and hosts; wildcards work.
+test_results_report_expected_checks: []
+
+# Hosts allowed to fail before the whole report fails.
+test_results_report_max_failed_hosts: 0
+
+# Failures you accept, each with a reason: check (and optionally suite and hosts), reason,
+# reference (a ticket) and expires (YYYY-MM-DD; after it the waiver no longer applies).
+test_results_report_waivers: []
+
+# Limits on the metrics checks report: check (and optionally suite and hosts), metric, then any
+# of min, max, max_increase_percent and max_decrease_percent (against test_results_report_compare_to),
+# and optionally severity, which a breach counts at.
+test_results_report_limits: []
+
+# An earlier report (its JSON file) to compare with: what regressed, what was fixed, what stopped
+# reporting, and the baseline for the percentage limits. Empty compares with nothing.
+test_results_report_compare_to: ""
+
+# Fail the play when the report fails. false writes the report and carries on; the outcome is in
+# the test_results_report_result fact either way.
+test_results_report_enforce: true
+
+# In GitHub Actions, put the Markdown report in the job summary.
+test_results_report_github_step_summary: true
+
+# Your own Jinja2 template for the Markdown report. Empty uses the role's.
+test_results_report_markdown_template: ""
+
+# The most characters of a check's output to show in the Markdown report. The JSON keeps 64 KiB.
+test_results_report_output_limit: 4000

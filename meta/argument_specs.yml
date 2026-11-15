@@ -1,0 +1,110 @@
+---
+argument_specs:
+  main:
+    short_description: Collect the results checks roles leave on each host into one judged report
+    description:
+      - Reads the test results each checks role left on each host (facts ending in _test_results), applies the thresholds,
+        limits and waivers, and writes one report on the control node as JSON, Markdown and JUnit XML.
+      - Every host's results go to <dir>/hosts/<host>.json first and the report is built from every host file in the
+        directory, so parallel runs that share the directory (one per host under terraform-ansible-role) leave one report.
+      - Fails the play when the report fails, unless test_results_report_enforce is false.
+    author:
+      - Craig Thacker
+    options:
+      test_results_report_dir:
+        description:
+          - Directory on the control node for the report. Give each run its own; hosts an earlier run left in it are
+            reported too. A relative path is under the playbook's directory.
+        type: str
+        default: "{{ playbook_dir }}/test-results"
+      test_results_report_basename:
+        description: The report's file name without an extension.
+        type: str
+        default: test-results
+      test_results_report_formats:
+        description: Files to write. json has everything; markdown is for people; junit is for CI test views.
+        type: list
+        elements: str
+        choices: [json, markdown, junit]
+        default: [json, markdown, junit]
+      test_results_report_title:
+        description: The report's title.
+        type: str
+        default: Test results
+      test_results_report_properties:
+        description: What to record with the report, such as the version tested, the pipeline run and the commit.
+        type: dict
+        default: {}
+      test_results_report_facts:
+        description: The facts holding each host's results. Empty finds every fact whose name ends in _test_results.
+        type: list
+        elements: str
+        default: []
+      test_results_report_host_label:
+        description:
+          - A stable name for the host, which comparisons with an earlier report match on. Set it per host when hosts
+            get new names every run.
+        type: str
+        default: "{{ inventory_hostname }}"
+      test_results_report_fail_severity:
+        description: The lowest severity whose failures count against the verdict. Failures below it are warnings.
+        type: str
+        choices: [critical, high, medium, low, info]
+        default: low
+      test_results_report_max_failures:
+        description: Failures (failed or error, at fail_severity or above, not waived) allowed per host.
+        type: int
+        default: 0
+      test_results_report_min_pass_rate:
+        description: The lowest pass rate allowed per host, as a percentage of the checks that ran. 0 turns it off.
+        type: float
+        default: 0
+      test_results_report_min_checks:
+        description: The fewest checks that must run (not be skipped) on each host.
+        type: int
+        default: 1
+      test_results_report_expected_checks:
+        description:
+          - Checks that must run on every host they select. Each is a check id, suite/check, or a mapping with check,
+            suite and hosts. Wildcards work.
+        type: list
+        elements: raw
+        default: []
+      test_results_report_max_failed_hosts:
+        description: Hosts allowed to fail before the whole report fails.
+        type: int
+        default: 0
+      test_results_report_waivers:
+        description:
+          - Failures to accept. Each has check (wildcards allowed), optionally suite and hosts, a reason, and optionally
+            reference and expires (YYYY-MM-DD).
+        type: list
+        elements: dict
+        default: []
+      test_results_report_limits:
+        description:
+          - Limits on reported metrics. Each has check, optionally suite and hosts, metric, any of min, max,
+            max_increase_percent and max_decrease_percent, and optionally severity.
+        type: list
+        elements: dict
+        default: []
+      test_results_report_compare_to:
+        description: An earlier report's JSON file to compare with. Empty compares with nothing.
+        type: str
+        default: ""
+      test_results_report_enforce:
+        description: Fail the play when the report fails.
+        type: bool
+        default: true
+      test_results_report_github_step_summary:
+        description: In GitHub Actions (GITHUB_STEP_SUMMARY set), put the Markdown report in the job summary.
+        type: bool
+        default: true
+      test_results_report_markdown_template:
+        description: A Jinja2 template of your own for the Markdown report. Empty uses the role's.
+        type: str
+        default: ""
+      test_results_report_output_limit:
+        description: The most characters of a check's output the Markdown report shows.
+        type: int
+        default: 4000
