@@ -22,6 +22,7 @@ deps:
 # Lint the YAML, the role (ansible-lint, production profile), the Python (ruff) and the workflows (zizmor).
 lint: deps
     uv run yamllint .
+    @uv run --quiet python -c "import sys, yaml; d = yaml.safe_load(open('meta/main.yml'))['galaxy_info']['description']; sys.exit(f'galaxy_info.description is {len(d)} characters: Galaxy refuses more than 255' if len(d) > 255 else 0)"
     uv run ansible-lint
     uv run ruff check files tests
     uv run ruff format --check files tests
