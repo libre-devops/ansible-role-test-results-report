@@ -511,6 +511,75 @@ def test_csv_has_one_row_per_result(tmp_path):
     assert accepted["outcome"] == "waived" and accepted["waiver"] == "Ticket open"
 
 
+def test_junit_skips_carry_their_reason_as_text_for_gitlab(tmp_path):
+    report_for(tmp_path, busy_host(tmp_path))
+    root = ET.parse(tmp_path / "test-results.xml").getroot()
+    for skipped in root.iter("skipped"):
+        assert skipped.text and skipped.text == skipped.get("message")
+
+
+def test_dotenv_keeps_to_gitlabs_rules(tmp_path):
+    import re
+
+    trr.run({"dir": str(tmp_path), "policy": busy_host(tmp_path), "formats": ["dotenv"]}, now=NOW)
+    text = (tmp_path / "test-results.env").read_text()
+    lines = text.splitlines()
+    assert all(re.match(r"^[A-Za-z0-9_]+=[^\s'\"]+$", line) for line in lines)
+    assert len(lines) <= 20 and len(text.encode()) <= 5120
+    values = dict(line.split("=", 1) for line in lines)
+    assert values["TEST_RESULTS_VERDICT"] == "failed" and values["TEST_RESULTS_FAILED_HOSTS"] == "vm1"
+    assert values["TEST_RESULTS_CHECKS_RAN"] == "5"
+
+
+def test_dotenv_leaves_out_empty_values_and_takes_a_prefix(tmp_path):
+    write_host(tmp_path, "vm1", [suite([check("a")])])
+    trr.run({"dir": str(tmp_path), "formats": ["dotenv"], "variable_prefix": "MDE_READINESS"}, now=NOW)
+    text = (tmp_path / "test-results.env").read_text()
+    assert "MDE_READINESS_VERDICT=passed" in text and "FAILED_HOSTS" not in text
+    with pytest.raises(trr.RequestError, match="variable_prefix"):
+        trr.run({"dir": str(tmp_path), "formats": ["dotenv"], "variable_prefix": "bad-prefix"}, now=NOW)
+
+
+def test_metrics_are_plain_name_value_lines(tmp_path):
+    import re
+
+    write_host(
+        tmp_path,
+        "vm-a.example.org",
+        [suite([check("quick_scan", metrics={"duration_seconds": 412.5}), check("bad", "failed")], "mde_linux_checks")],
+        label="rhel9",
+    )
+    trr.run({"dir": str(tmp_path), "formats": ["metrics"]}, now=NOW)
+    lines = (tmp_path / "test-results.prom").read_text().splitlines()
+    assert lines[-1] == "# EOF"
+    assert all(re.match(r"^[a-z_][a-z0-9_]* -?[0-9.]+$", line) for line in lines[:-1])
+    metrics = dict(line.split(" ") for line in lines[:-1])
+    assert metrics["test_results_rhel9_mde_linux_checks_quick_scan_duration_seconds"] == "412.5"
+    assert metrics["test_results_checks_failed"] == "1" and metrics["test_results_verdict_passed"] == "0"
+
+
+def test_gitlab_annotations_link_to_the_jobs_artifacts(tmp_path):
+    project = tmp_path / "project"
+    write_host(project / "test-results", "vm1", [suite([check("a")])])
+    request = {
+        "dir": str(project / "test-results"),
+        "formats": ["html", "json"],
+        "gitlab": {"job_url": "https://gitlab.example.org/team/infra/-/jobs/42", "project_dir": str(project)},
+    }
+    outcome = trr.run(request, now=NOW)
+    links = json.loads((project / "test-results" / "test-results.annotations.json").read_text())["test_results_report"]
+    assert links[0]["external_link"] == {
+        "label": "Test report (HTML): PASSED",
+        "url": "https://gitlab.example.org/team/infra/-/jobs/42/artifacts/file/test-results/test-results.html",
+    }
+    assert "gitlab_annotations" in outcome["files"]
+    # Outside the project the links could not work, so none are written.
+    elsewhere = tmp_path / "elsewhere"
+    write_host(elsewhere, "vm1", [suite([check("a")])])
+    trr.run(dict(request, dir=str(elsewhere)), now=NOW)
+    assert not (elsewhere / "test-results.annotations.json").exists()
+
+
 def test_formats_and_basename(tmp_path):
     write_host(tmp_path, "vm1", [suite([check("a")])])
     outcome = trr.run({"dir": str(tmp_path), "formats": ["junit"], "basename": "mdatp"}, now=NOW)

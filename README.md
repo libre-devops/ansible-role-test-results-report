@@ -14,7 +14,8 @@ Collects the results that checks roles leave on each host into one report, judge
 - an **HTML** page for people, self-contained so it opens anywhere and can be emailed;
 - **Markdown** for the CI job summary;
 - **JUnit XML** for CI test views;
-- **CSV** for a spreadsheet, if asked for.
+- **CSV** for a spreadsheet, if asked for;
+- GitLab's **dotenv**, **metrics** and **annotations** reports, so a merge request shows the results and later jobs can act on the verdict.
 
 It fails the play when the results do not meet the thresholds.
 
@@ -41,6 +42,7 @@ It runs no checks itself. Checks roles such as [libre_devops.mde_linux_checks](h
 - [The report files](#the-report-files)
 - [The HTML report](#the-html-report)
 - [Reading the report in a pipeline](#reading-the-report-in-a-pipeline)
+- [GitLab CI](#gitlab-ci)
 - [Several runs, one report](#several-runs-one-report)
 - [Writing a checks role](#writing-a-checks-role)
 - [Role variables](#role-variables)
@@ -232,6 +234,9 @@ The files `test_results_report_formats` asks for (by default `json`, `html`, `ma
 | `test-results.md` | People and the job summary | The verdict and one-line summary first, then why it failed, then a table of hosts. After that come the checks that need attention, ordered by severity, with what was expected, what was seen, what to do and the evidence. Then the waived failures, any changes since the earlier run, every result per host with the suite's properties (the product version, for example), and how the verdict was reached. It is shown in the GitHub job summary too. |
 | `test-results.json` | Pipelines | Everything, in three flat tables (`hosts`, `suites`, `results`) plus the `summary`, the `policy` applied, the `waivers` and `limits` with how often each matched, and the `comparison`. Every key is always present, with `null` for no value. The format is versioned (`schema: libre_devops.test_results_report/v1`) and published as a JSON Schema: [`files/schemas/test-results-report.schema.json`](./files/schemas/test-results-report.schema.json). |
 | `test-results.xml` | CI test views | JUnit XML: one `<testsuite>` per host and suite, one `<testcase>` per check, named `<id>: <name>` with classname `<host>.<suite>`. Only failures that count are `<failure>` or `<error>`. Waived, warning and skipped results are `<skipped>` with a message saying which, so a CI tool that fails on test failures agrees with the verdict. A host that sent nothing is an `<error>`. |
+| `test-results.env` | GitLab and shells | Not written by default: add `dotenv`. The verdict and counts as `KEY=value` lines, for GitLab's dotenv report (variables for later jobs) or a shell's `source`. See [GitLab CI](#gitlab-ci). |
+| `test-results.prom` | GitLab and Prometheus | Not written by default: add `metrics`. The counts and every check's metrics as `name value` lines, ending `# EOF`, for GitLab's metrics report or Prometheus. |
+| `test-results.annotations.json` | GitLab | Written in GitLab CI when the report is inside the project: links on the job's page to the report files. |
 | `test-results.csv` | Spreadsheets | Not written by default: add `csv` to `test_results_report_formats`. One row per result: host, label, suite, check id and name, category, severity, status, outcome, detail, expected, actual, what to do, documentation, metrics, duration, waiver and change since the earlier run. |
 | `hosts/<host>.json` | Rebuilding | Each host's results as the checks roles reported them. |
 
@@ -292,6 +297,50 @@ Publishing the files in CI:
 - script: echo "##vso[task.uploadsummary]$(System.DefaultWorkingDirectory)/test-results/test-results.md"
   condition: always()
 ```
+
+### GitLab CI
+
+GitLab has no job summary, but it reads reports of its own, and the role writes them:
+
+| Report | What GitLab shows | Format | Tier |
+|---|---|---|---|
+| `junit` | The merge request's test summary and the pipeline's **Tests** tab, compared with the target branch: newly failed, newly erroring, still failing and fixed checks. Each failure's detail, expected, actual and what to do; each skip and waiver with its reason. | `junit` (on by default) | Free |
+| `dotenv` | Variables for later jobs: `TEST_RESULTS_VERDICT`, `_HOSTS`, `_HOSTS_FAILED`, `_FAILED_HOSTS` (comma-separated), `_CHECKS_RAN`, `_FAILED`, `_ERRORS`, `_WARNINGS`, `_WAIVED`, `_SKIPPED`, `_PASS_RATE`. | `dotenv` | Free |
+| `annotations` | Links on the job's page to the HTML, Markdown and JSON reports in the job's artifacts. Written automatically when the role runs in GitLab CI (`CI_JOB_URL` set) and the report directory is inside the project. | `test_results_report_gitlab_annotations` | Free |
+| `metrics` | The merge request's metrics widget, compared with the target branch: the counts, and every check's metrics (scan time, memory, CPU, detection time) by host label. | `metrics` | Premium |
+
+```yaml
+# .gitlab-ci.yml. The playbook sets test_results_report_formats to
+# [json, html, markdown, junit, dotenv, metrics].
+mde-release-test:
+  stage: test
+  script:
+    # The report goes inside the project, so it can be kept as an artifact.
+    - ansible-playbook -i inventory.ini release-test.yml -e test_results_report_dir=$CI_PROJECT_DIR/test-results
+  artifacts:
+    when: always                      # the report matters most when the checks failed
+    expose_as: Test report            # a link to the files from the merge request
+    paths:
+      - test-results/
+    reports:
+      junit: test-results/test-results.xml
+      dotenv: test-results/test-results.env
+      annotations: test-results/test-results.annotations.json
+      metrics: test-results/test-results.prom      # Premium; ignored on Free
+
+# A later job reads the verdict without parsing anything. dotenv variables reach scripts,
+# not rules: rules are decided when the pipeline is created, before the test has run.
+notify:
+  stage: .post
+  needs: [mde-release-test]
+  when: always
+  script:
+    - echo "Release test $TEST_RESULTS_VERDICT: $TEST_RESULTS_HOSTS_FAILED of $TEST_RESULTS_HOSTS hosts failed ($TEST_RESULTS_FAILED_HOSTS)"
+```
+
+The play fails when the report fails, so the job fails with it: GitLab's test reports never change a job's status on their own. Keep `when: always`, or a failed run loses the report that says why. When one pipeline writes more than one report, give each its own `test_results_report_variable_prefix` (`MDE_READINESS`, say) so their variables and metrics do not collide.
+
+The metrics file is also Prometheus text, so the node exporter's textfile collector can graph scan times and memory across runs. Its names carry no labels (GitLab documents plain `name value` lines only): `test_results_<host label>_<suite>_<check>_<metric>`, such as `test_results_rhel9_mde_linux_checks_quick_scan_duration_seconds`.
 
 ## Several runs, one report
 
@@ -357,7 +406,7 @@ Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_
 |---|---|---|
 | `test_results_report_dir` | `{{ playbook_dir }}/test-results` | Directory on the control node for the report. One per run: hosts an earlier run left in it are reported too. A relative path is under the playbook's directory. |
 | `test_results_report_basename` | `test-results` | The files' name, without an extension. |
-| `test_results_report_formats` | `[json, html, markdown, junit]` | Which files to write: `json`, `html`, `markdown`, `junit`, `csv`. |
+| `test_results_report_formats` | `[json, html, markdown, junit]` | Which files to write: `json`, `html`, `markdown`, `junit`, `csv`, `dotenv`, `metrics`. |
 | `test_results_report_title` | `Test results` | The report's title. |
 | `test_results_report_properties` | `{}` | What to record with the report: the version tested, the pipeline run, the commit. |
 | `test_results_report_facts` | `[]` | The facts that hold each host's results. Empty finds every fact ending in `_test_results`. |
@@ -373,6 +422,8 @@ Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_
 | `test_results_report_compare_to` | `""` | An earlier `test-results.json` to compare with. |
 | `test_results_report_enforce` | `true` | Fail the play when the report fails. |
 | `test_results_report_github_step_summary` | `true` | In GitHub Actions, put the Markdown in the job summary. Several runs in one step replace each other's copy rather than adding to it. |
+| `test_results_report_gitlab_annotations` | `true` | In GitLab CI, write links on the job's page to the report files (`artifacts:reports:annotations`). |
+| `test_results_report_variable_prefix` | `TEST_RESULTS` | The start of the dotenv variables' names, and in lower case the metrics'. One per report when a pipeline writes several. |
 | `test_results_report_markdown_template` | `""` | Your own Jinja2 template for the Markdown. The role's, [`templates/test-results.md.j2`](./templates/test-results.md.j2), is the place to start. |
 | `test_results_report_html_template` | `""` | Your own Jinja2 template for the HTML, rendered with autoescaping. The role's, [`templates/test-results.html.j2`](./templates/test-results.html.j2), is the place to start. |
 | `test_results_report_output_limit` | `4000` | The most characters of a check's output the Markdown shows. |

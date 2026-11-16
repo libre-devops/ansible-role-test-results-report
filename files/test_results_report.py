@@ -50,7 +50,7 @@ OUTCOMES = ("passed", "failed", "error", "warning", "waived", "skipped")
 # Lowest first: a check's severity is compared with the policy's fail_severity by position.
 SEVERITIES = ("info", "low", "medium", "high", "critical")
 ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
-FORMATS = ("json", "markdown", "junit", "html", "csv")
+FORMATS = ("json", "markdown", "junit", "html", "csv", "dotenv", "metrics")
 DEFAULT_FORMATS = ("json", "html", "markdown", "junit")
 CHANGES = ("new", "fixed", "regressed", "unchanged")
 
@@ -764,21 +764,23 @@ def render_junit(report: dict[str, Any]) -> str:
                     tag = "failure" if outcome == "failed" else "error"
                     node = ET.SubElement(case, tag, message=xml_text(result["detail"] or outcome), type=result["severity"])
                     node.text = xml_text(body)
-                elif outcome == "waived":
-                    waiver = result["waiver"]
-                    note = f"Waived: {waiver['reason']}" + (f" ({waiver['reference']})" if waiver.get("reference") else "")
-                    ET.SubElement(case, "skipped", message=xml_text(f"{note}. Was {result['status']}: {result['detail'] or ''}".strip()))
-                elif outcome == "warning":
-                    ET.SubElement(
-                        case,
-                        "skipped",
-                        message=xml_text(
+                else:
+                    reason = None
+                    if outcome == "waived":
+                        waiver = result["waiver"]
+                        note = f"Waived: {waiver['reason']}" + (f" ({waiver['reference']})" if waiver.get("reference") else "")
+                        reason = f"{note}. Was {result['status']}: {result['detail'] or ''}".strip()
+                    elif outcome == "warning":
+                        reason = (
                             f"Warning: {result['status']} at {result['severity']} severity, below the "
                             f"{report['policy']['fail_severity']} threshold: {result['detail'] or ''}".strip()
-                        ),
-                    )
-                elif outcome == "skipped":
-                    ET.SubElement(case, "skipped", message=xml_text(result["detail"] or "skipped"))
+                        )
+                    elif outcome == "skipped":
+                        reason = result["detail"] or "skipped"
+                    if reason is not None:
+                        # In the message for tools that read it, and as the text for GitLab, which reads only that.
+                        node = ET.SubElement(case, "skipped", message=xml_text(reason))
+                        node.text = xml_text(reason)
                 if body and outcome in ("passed",):
                     ET.SubElement(case, "system-out").text = xml_text(body)
     ET.indent(root)
@@ -942,6 +944,100 @@ def render_csv(report: dict[str, Any]) -> str:
     return buffer.getvalue()
 
 
+def render_dotenv(report: dict[str, Any], prefix: str) -> str:
+    """The verdict and counts as KEY=value lines, for GitLab's dotenv report or a shell's source.
+
+    GitLab's rules: names of ASCII letters, digits and underscores; one line per value, nothing
+    quoted or escaped; no empty or comment lines; 5 KB at most. A value that would be empty is
+    left out, so a later job sees the variable unset.
+    """
+    summary = report["summary"]
+    failed_hosts = ",".join(h["host"] for h in report["hosts"] if h["verdict"] == "failed")
+    values = [
+        ("VERDICT", report["verdict"]),
+        ("HOSTS", summary["hosts"]),
+        ("HOSTS_PASSED", summary["hosts_passed"]),
+        ("HOSTS_FAILED", summary["hosts_failed"]),
+        ("FAILED_HOSTS", failed_hosts[:3000]),
+        ("CHECKS_RAN", summary["ran"]),
+        ("PASSED", summary["passed"]),
+        ("FAILED", summary["failed"]),
+        ("ERRORS", summary["error"]),
+        ("WARNINGS", summary["warning"]),
+        ("WAIVED", summary["waived"]),
+        ("SKIPPED", summary["skipped"]),
+        ("PASS_RATE", "" if summary["pass_rate"] is None else f"{summary['pass_rate']:g}"),
+    ]
+    lines = []
+    for key, value in values:
+        value = re.sub(r"[^A-Za-z0-9_.,:@/+-]", "_", str(value))
+        if value != "":
+            lines.append(f"{prefix}_{key}={value}")
+    return "\n".join(lines) + "\n"
+
+
+def metric_name(*parts: str) -> str:
+    name = re.sub(r"[^a-z0-9_]+", "_", "_".join(parts).lower()).strip("_")
+    return re.sub(r"_+", "_", name if re.match(r"^[a-z_]", name) else "_" + name)
+
+
+def render_metrics(report: dict[str, Any], prefix: str) -> str:
+    """The counts and every check's metrics, one `name value` line each, ending with # EOF.
+
+    GitLab's metrics report (Premium) compares each name's value with the target branch, and
+    documents only plain `name value` lines, so there are no labels: a metric's name says which
+    host label, suite, check and metric it is. It is also Prometheus text, for the node exporter's
+    textfile collector.
+    """
+    summary = report["summary"]
+    rows = [
+        (metric_name(prefix, "hosts"), summary["hosts"]),
+        (metric_name(prefix, "hosts_failed"), summary["hosts_failed"]),
+        (metric_name(prefix, "checks_ran"), summary["ran"]),
+        (metric_name(prefix, "checks_failed"), summary["failed"]),
+        (metric_name(prefix, "checks_errors"), summary["error"]),
+        (metric_name(prefix, "checks_warnings"), summary["warning"]),
+        (metric_name(prefix, "verdict_passed"), 1 if report["verdict"] == "passed" else 0),
+    ]
+    if summary["pass_rate"] is not None:
+        rows.append((metric_name(prefix, "pass_rate_percent"), summary["pass_rate"]))
+    for result in report["results"]:
+        for metric, value in result["metrics"].items():
+            rows.append((metric_name(prefix, result["label"], result["suite"], result["id"], metric), value))
+    lines, seen = [], set()
+    for name, value in rows:
+        if name in seen:
+            continue  # two host labels or ids that only differ in punctuation: keep the first
+        seen.add(name)
+        lines.append(f"{name} {value:g}" if isinstance(value, float) else f"{name} {value}")
+    return "\n".join(lines) + "\n# EOF\n"
+
+
+def gitlab_annotations(report: dict[str, Any], files: dict[str, str], job_url: str, project_dir: str) -> str | None:
+    """Links on the GitLab job's page to the report's files, as an annotations report.
+
+    The links go to the job's artifacts, so they work when the report directory is inside the
+    project and kept as an artifact. None when it is not inside the project.
+    """
+    links = []
+    for kind, label in (("html", "Test report (HTML)"), ("markdown", "Test report (Markdown)"), ("json", "Test results (JSON)")):
+        if kind not in files:
+            continue
+        try:
+            relative = Path(files[kind]).resolve().relative_to(Path(project_dir).resolve())
+        except ValueError:
+            return None
+        links.append(
+            {
+                "external_link": {
+                    "label": f"{label}: {report['verdict'].upper()}",
+                    "url": f"{job_url.rstrip('/')}/artifacts/file/{relative.as_posix()}",
+                }
+            }
+        )
+    return json.dumps({"test_results_report": links}, indent=2) + "\n" if links else None
+
+
 def update_step_summary(path: Path, key: str, markdown: str) -> None:
     """Put the report in the GitHub job summary, replacing this report's earlier copy.
 
@@ -974,7 +1070,7 @@ def console_lines(report: dict[str, Any], files: dict[str, str]) -> list[str]:
             f"{plural(tally['warning'], 'warning')}, {tally['waived']} waived, {tally['skipped']} skipped)"
         )
         lines.append(line + (f". {' '.join(host['reasons'])}" if host["reasons"] else ""))
-    for name in ("html", "markdown", "json", "junit", "csv"):
+    for name in ("html", "markdown", "json", "junit", "csv", "dotenv", "metrics", "gitlab_annotations"):
         if name in files:
             lines.append(f"{name}: {files[name]}")
     return lines
@@ -1037,6 +1133,21 @@ def run(request: dict[str, Any], now: dt.datetime | None = None) -> dict[str, An
         if "csv" in formats:
             files["csv"] = str(directory / f"{basename}.csv")
             atomic_write(Path(files["csv"]), render_csv(report))
+        prefix = request.get("variable_prefix") or "TEST_RESULTS"
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", prefix):
+            raise RequestError("variable_prefix must be letters, digits and underscores")
+        if "dotenv" in formats:
+            files["dotenv"] = str(directory / f"{basename}.env")
+            atomic_write(Path(files["dotenv"]), render_dotenv(report, prefix.upper()))
+        if "metrics" in formats:
+            files["metrics"] = str(directory / f"{basename}.prom")
+            atomic_write(Path(files["metrics"]), render_metrics(report, prefix.lower()))
+        gitlab = request.get("gitlab") or {}
+        if gitlab.get("job_url") and gitlab.get("project_dir"):
+            annotations = gitlab_annotations(report, files, gitlab["job_url"], gitlab["project_dir"])
+            if annotations:
+                files["gitlab_annotations"] = str(directory / f"{basename}.annotations.json")
+                atomic_write(Path(files["gitlab_annotations"]), annotations)
         summary_path = request.get("github_step_summary")
         if summary_path and "markdown" in formats:
             if len(markdown.encode("utf-8")) > STEP_SUMMARY_LIMIT:

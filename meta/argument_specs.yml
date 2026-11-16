@@ -27,7 +27,7 @@ argument_specs:
             junit is for CI test views; csv is one row per result, for a spreadsheet.
         type: list
         elements: str
-        choices: [json, html, markdown, junit, csv]
+        choices: [json, html, markdown, junit, csv, dotenv, metrics]
         default: [json, html, markdown, junit]
       test_results_report_title:
         description: The report's title.
@@ -102,6 +102,14 @@ argument_specs:
         description: In GitHub Actions (GITHUB_STEP_SUMMARY set), put the Markdown report in the job summary.
         type: bool
         default: true
+      test_results_report_gitlab_annotations:
+        description: In GitLab CI (CI_JOB_URL set), write links on the job's page to the report's files, for artifacts:reports:annotations.
+        type: bool
+        default: true
+      test_results_report_variable_prefix:
+        description: The start of the dotenv variables' names and, in lower case, the metrics' names.
+        type: str
+        default: TEST_RESULTS
       test_results_report_markdown_template:
         description: A Jinja2 template of your own for the Markdown report. Empty uses the role's.
         type: str

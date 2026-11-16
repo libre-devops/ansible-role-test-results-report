@@ -81,6 +81,12 @@
           compare_to: "{{ test_results_report_compare_to }}"
           markdown_template: "{{ test_results_report_markdown_template }}"
           html_template: "{{ test_results_report_html_template }}"
+          variable_prefix: "{{ test_results_report_variable_prefix }}"
+          gitlab:
+            job_url: >-
+              {{ lookup('ansible.builtin.env', 'CI_JOB_URL', default='')
+                 if test_results_report_gitlab_annotations | bool else '' }}
+            project_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR', default='') }}"
           output_limit: "{{ test_results_report_output_limit | int }}"
           github_step_summary: >-
             {{ lookup('ansible.builtin.env', 'GITHUB_STEP_SUMMARY', default='')

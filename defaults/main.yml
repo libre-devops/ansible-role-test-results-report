@@ -8,8 +8,10 @@ test_results_report_dir: "{{ playbook_dir }}/test-results"
 test_results_report_basename: test-results
 
 # Which files to write: json (everything, for pipelines), html (a self-contained page for people,
-# to open or email), markdown (the job summary, and for people), junit (for CI test views) and csv
-# (one row per result, for a spreadsheet).
+# to open or email), markdown (the job summary, and for people), junit (for CI test views, GitLab's
+# merge request test summary included), csv (one row per result, for a spreadsheet), dotenv (the
+# verdict and counts as KEY=value, for GitLab's dotenv report or a shell) and metrics (counts and
+# every check's metrics as name value lines, for GitLab's metrics report or Prometheus).
 test_results_report_formats:
   - json
   - html
@@ -72,6 +74,14 @@ test_results_report_enforce: true
 
 # In GitHub Actions, put the Markdown report in the job summary.
 test_results_report_github_step_summary: true
+
+# In GitLab CI, write <basename>.annotations.json: links on the job's page to the report's files
+# in the job's artifacts (for artifacts:reports:annotations).
+test_results_report_gitlab_annotations: true
+
+# The start of the dotenv variables' names (TEST_RESULTS_VERDICT) and, in lower case, the metrics'
+# (test_results_checks_failed). Change it when a pipeline writes more than one report.
+test_results_report_variable_prefix: TEST_RESULTS
 
 # Your own Jinja2 templates for the Markdown and HTML reports. Empty uses the role's.
 test_results_report_markdown_template: ""
