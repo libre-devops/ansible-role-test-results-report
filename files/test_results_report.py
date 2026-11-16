@@ -21,12 +21,15 @@ python3 test_results_report.py --request request.json
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import copy
+import csv
 import datetime as dt
 import fcntl
 import fnmatch
 import hashlib
+import io
 import json
 import math
 import os
@@ -47,7 +50,8 @@ OUTCOMES = ("passed", "failed", "error", "warning", "waived", "skipped")
 # Lowest first: a check's severity is compared with the policy's fail_severity by position.
 SEVERITIES = ("info", "low", "medium", "high", "critical")
 ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
-FORMATS = ("json", "markdown", "junit")
+FORMATS = ("json", "markdown", "junit", "html", "csv")
+DEFAULT_FORMATS = ("json", "html", "markdown", "junit")
 CHANGES = ("new", "fixed", "regressed", "unchanged")
 
 # Longest output kept per result in the JSON report. The Markdown report keeps less
@@ -809,6 +813,14 @@ def md_block(value: Any) -> str:
     return f"{fence}text\n{value}\n{fence}"
 
 
+def needing_attention(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Failures, errors and warnings, by host, then severity (highest first), then outcome."""
+    severity_order = {severity: index for index, severity in enumerate(reversed(SEVERITIES))}
+    attention = [r for r in report["results"] if r["outcome"] in ("failed", "error", "warning")]
+    attention.sort(key=lambda r: (r["host"], severity_order[r["severity"]], ("failed", "error", "warning").index(r["outcome"])))
+    return attention
+
+
 def render_markdown(report: dict[str, Any], template_path: Path, output_limit: int, compact: bool = False) -> str:
     import jinja2  # ansible-core depends on it, so it is always there under ansible_playbook_python
 
@@ -832,12 +844,9 @@ def render_markdown(report: dict[str, Any], template_path: Path, output_limit: i
         }
     )
     template = environment.get_template(template_path.name)
-    severity_order = {severity: index for index, severity in enumerate(reversed(SEVERITIES))}
-    attention = [r for r in report["results"] if r["outcome"] in ("failed", "error", "warning")]
-    attention.sort(key=lambda r: (r["host"], severity_order[r["severity"]], ("failed", "error", "warning").index(r["outcome"])))
     content = template.render(
         report=report,
-        attention=attention,
+        attention=needing_attention(report),
         compact=compact,
         severities=list(reversed(SEVERITIES)),
         outcome_label={
@@ -850,6 +859,87 @@ def render_markdown(report: dict[str, Any], template_path: Path, output_limit: i
         },
     )
     return re.sub(r"\n{3,}", "\n\n", content)
+
+
+HTML_ASSETS = Path(__file__).resolve().parent / "html"
+
+
+def csp_hash(text: str) -> str:
+    return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode("utf-8")).digest()).decode() + "'"
+
+
+def render_html(report: dict[str, Any], template_path: Path, output_limit: int) -> str:
+    """One self-contained page: the stylesheet and script inline, nothing fetched.
+
+    The content security policy lets only the page's own style and script run, by their
+    hashes, and loads nothing at all: the page opens offline, from an email attachment or
+    behind a proxy that blocks every CDN, and a value in the results cannot add a script.
+    Autoescaping is on, so every value from the results is escaped.
+    """
+    import jinja2
+
+    style = (HTML_ASSETS / "report.css").read_text(encoding="utf-8")
+    script = (HTML_ASSETS / "report.js").read_text(encoding="utf-8")
+    policy = (
+        f"default-src 'none'; style-src {csp_hash(style)}; script-src {csp_hash(script)}; img-src data:; "
+        "base-uri 'none'; form-action 'none'"
+    )
+    environment = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(template_path.parent)),
+        undefined=jinja2.StrictUndefined,
+        trim_blocks=True,
+        lstrip_blocks=True,
+        autoescape=True,
+    )
+    environment.filters.update(
+        {
+            "plural": lambda n, singular, plural_form=None: plural(n, singular, plural_form),
+            "cut": lambda value: truncate(value, output_limit),
+            "number": lambda value: "" if value is None else f"{value:g}",
+        }
+    )
+    # Only web links become links: a javascript: or data: value in the results stays text.
+    environment.tests["link"] = lambda value: isinstance(value, str) and re.match(r"^https?://[^\s\"'<>]+$", value) is not None
+    content = environment.get_template(template_path.name).render(
+        report=report, attention=needing_attention(report), style=style, script=script, policy=policy
+    )
+    # Blank lines between tags only: escaped output inside <pre> holds no raw < or >, so its own stay.
+    return re.sub(r">\n{2,}<", ">\n<", content)
+
+
+CSV_COLUMNS = (
+    "host",
+    "label",
+    "suite",
+    "id",
+    "name",
+    "category",
+    "severity",
+    "status",
+    "outcome",
+    "detail",
+    "expected",
+    "actual",
+    "remediation",
+    "docs",
+    "metrics",
+    "duration_seconds",
+    "waiver",
+    "change",
+)
+
+
+def render_csv(report: dict[str, Any]) -> str:
+    """One row per result, for a spreadsheet: the columns people filter and pivot on."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(CSV_COLUMNS)
+    for result in report["results"]:
+        row = dict(result)
+        row["metrics"] = "; ".join(f"{k}={v:g}" for k, v in result["metrics"].items())
+        row["waiver"] = (result["waiver"] or {}).get("reason") or ""
+        writer.writerow(["" if row.get(column) is None else row[column] for column in CSV_COLUMNS])
+    return buffer.getvalue()
 
 
 def update_step_summary(path: Path, key: str, markdown: str) -> None:
@@ -884,7 +974,7 @@ def console_lines(report: dict[str, Any], files: dict[str, str]) -> list[str]:
             f"{plural(tally['warning'], 'warning')}, {tally['waived']} waived, {tally['skipped']} skipped)"
         )
         lines.append(line + (f". {' '.join(host['reasons'])}" if host["reasons"] else ""))
-    for name in ("markdown", "json", "junit"):
+    for name in ("html", "markdown", "json", "junit", "csv"):
         if name in files:
             lines.append(f"{name}: {files[name]}")
     return lines
@@ -896,7 +986,7 @@ def run(request: dict[str, Any], now: dt.datetime | None = None) -> dict[str, An
     directory = Path(request.get("dir") or "").expanduser()
     if not str(directory) or not directory.is_absolute():
         raise RequestError("dir must be an absolute path")
-    formats = request.get("formats", list(FORMATS))
+    formats = request.get("formats", list(DEFAULT_FORMATS))
     if not isinstance(formats, list) or not set(formats) <= set(FORMATS):
         raise RequestError(f"formats must be a list of {', '.join(FORMATS)}")
     basename = request.get("basename") or "test-results"
@@ -905,9 +995,13 @@ def run(request: dict[str, Any], now: dt.datetime | None = None) -> dict[str, An
     expected_hosts = request.get("expected_hosts") or []
     if not isinstance(expected_hosts, list) or not all(isinstance(h, str) for h in expected_hosts):
         raise RequestError("expected_hosts must be a list of host names")
-    template_path = Path(request.get("markdown_template") or Path(__file__).resolve().parent.parent / "templates" / "test-results.md.j2")
+    templates = Path(__file__).resolve().parent.parent / "templates"
+    template_path = Path(request.get("markdown_template") or templates / "test-results.md.j2")
     if "markdown" in formats and not template_path.is_file():
         raise RequestError(f"markdown_template {template_path} does not exist")
+    html_template = Path(request.get("html_template") or templates / "test-results.html.j2")
+    if "html" in formats and not html_template.is_file():
+        raise RequestError(f"html_template {html_template} does not exist")
     output_limit = int(request.get("output_limit") or 4000)
     now = now or (parse_time(request.get("now")) if request.get("now") else None) or utc_now()
 
@@ -937,6 +1031,12 @@ def run(request: dict[str, Any], now: dt.datetime | None = None) -> dict[str, An
         if "junit" in formats:
             files["junit"] = str(directory / f"{basename}.xml")
             atomic_write(Path(files["junit"]), render_junit(report))
+        if "html" in formats:
+            files["html"] = str(directory / f"{basename}.html")
+            atomic_write(Path(files["html"]), render_html(report, html_template, output_limit))
+        if "csv" in formats:
+            files["csv"] = str(directory / f"{basename}.csv")
+            atomic_write(Path(files["csv"]), render_csv(report))
         summary_path = request.get("github_step_summary")
         if summary_path and "markdown" in formats:
             if len(markdown.encode("utf-8")) > STEP_SUMMARY_LIMIT:

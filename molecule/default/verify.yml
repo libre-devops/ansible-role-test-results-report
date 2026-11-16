@@ -63,6 +63,17 @@
           - "'## How it was judged' in __verify_markdown"
         quiet: true
 
+    - name: Check the HTML report is one page that fetches nothing
+      ansible.builtin.assert:
+        that:
+          - __verify_html.startswith('<!doctype html>')
+          - "'<h1>Molecule default</h1>' in __verify_html"
+          - "'default-src &#39;none&#39;' in __verify_html"
+          - "' src=' not in __verify_html"
+        quiet: true
+      vars:
+        __verify_html: "{{ lookup('ansible.builtin.file', __verify_dir ~ '/test-results.html') }}"
+
     - name: List the host files
       ansible.builtin.find:
         paths: "{{ __verify_dir }}/hosts"

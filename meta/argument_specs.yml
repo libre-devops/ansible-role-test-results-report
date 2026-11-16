@@ -22,11 +22,13 @@ argument_specs:
         type: str
         default: test-results
       test_results_report_formats:
-        description: Files to write. json has everything; markdown is for people; junit is for CI test views.
+        description:
+          - Files to write. json has everything, for pipelines; html is a self-contained page for people; markdown is the job summary;
+            junit is for CI test views; csv is one row per result, for a spreadsheet.
         type: list
         elements: str
-        choices: [json, markdown, junit]
-        default: [json, markdown, junit]
+        choices: [json, html, markdown, junit, csv]
+        default: [json, html, markdown, junit]
       test_results_report_title:
         description: The report's title.
         type: str
@@ -102,6 +104,10 @@ argument_specs:
         default: true
       test_results_report_markdown_template:
         description: A Jinja2 template of your own for the Markdown report. Empty uses the role's.
+        type: str
+        default: ""
+      test_results_report_html_template:
+        description: A Jinja2 template of your own for the HTML report, rendered with autoescaping. Empty uses the role's.
         type: str
         default: ""
       test_results_report_output_limit:

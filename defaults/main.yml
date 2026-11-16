@@ -4,13 +4,15 @@
 # terraform-ansible-role's, end up in one report). A relative path is under the playbook's.
 test_results_report_dir: "{{ playbook_dir }}/test-results"
 
-# The report's file name, without an extension: test-results.json, .md and .xml.
+# The report's file name, without an extension: test-results.json, .html, .md, .xml and .csv.
 test_results_report_basename: test-results
 
-# Which files to write: json (everything, for pipelines), markdown (for people) and junit (for
-# CI test views).
+# Which files to write: json (everything, for pipelines), html (a self-contained page for people,
+# to open or email), markdown (the job summary, and for people), junit (for CI test views) and csv
+# (one row per result, for a spreadsheet).
 test_results_report_formats:
   - json
+  - html
   - markdown
   - junit
 
@@ -71,8 +73,9 @@ test_results_report_enforce: true
 # In GitHub Actions, put the Markdown report in the job summary.
 test_results_report_github_step_summary: true
 
-# Your own Jinja2 template for the Markdown report. Empty uses the role's.
+# Your own Jinja2 templates for the Markdown and HTML reports. Empty uses the role's.
 test_results_report_markdown_template: ""
+test_results_report_html_template: ""
 
 # The most characters of a check's output to show in the Markdown report. The JSON keeps 64 KiB.
 test_results_report_output_limit: 4000

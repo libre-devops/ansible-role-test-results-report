@@ -1,0 +1,143 @@
+{#-
+  The HTML report: one self-contained page, rendered by files/test_results_report.py with
+  autoescaping on, so every value from the results is escaped. The stylesheet and script come
+  from files/html/ and go inline; the content security policy lets only those two run (by hash)
+  and loads nothing at all, so the page opens offline, from an email or behind a proxy.
+  Copy it and point test_results_report_html_template at your copy to change the layout; the
+  data is the JSON report, as report, documented in the README.
+-#}
+{%- set s = report.summary -%}
+{%- set pill_class = {'passed': 'ok', 'failed': 'err', 'error': 'err', 'warning': 'warn', 'waived': 'muted', 'skipped': 'muted'} -%}
+{%- set outcome_text = {'passed': 'Passed', 'failed': 'Failed', 'error': 'Error', 'warning': 'Warning', 'waived': 'Waived', 'skipped': 'Skipped'} -%}
+{%- set severity_rank = {'critical': '5', 'high': '4', 'medium': '3', 'low': '2', 'info': '1'} -%}
+{%- macro toolbar() -%}
+<div class="toolbar"><input type="search" placeholder="Filter rows" aria-label="Filter rows"><button type="button">Copy as CSV</button><span class="count"></span></div>
+{%- endmacro -%}
+{%- macro outcome(value) -%}
+<span class="pill {{ pill_class[value] }}">{{ outcome_text[value] }}</span>
+{%- endmacro -%}
+{%- macro severity(result) -%}
+<td class="nowrap" data-value="{{ severity_rank[result.severity] }}">{{ result.severity | capitalize }}</td>
+{%- endmacro -%}
+{%- macro metrics(result) -%}
+{{ result.metrics | dictsort | map('join', '=') | join(', ') }}
+{%- endmacro -%}
+{%- macro more(result) -%}
+{%- if result.expected or result.actual or result.remediation or result.docs or result.output or result.waiver or result.expired_waiver or result.limits %}
+<details><summary>More</summary><dl>
+{%- if result.expected %}<dt>Expected</dt><dd>{{ result.expected }}</dd>{% endif %}
+{%- if result.actual %}<dt>Actual</dt><dd>{{ result.actual }}</dd>{% endif %}
+{%- if result.remediation %}<dt>What to do</dt><dd>{{ result.remediation }}</dd>{% endif %}
+{%- if result.docs %}<dt>Documentation</dt><dd>{% if result.docs is link %}<a href="{{ result.docs }}" rel="noopener noreferrer">{{ result.docs }}</a>{% else %}{{ result.docs }}{% endif %}</dd>{% endif %}
+{%- if result.waiver %}<dt>Waiver</dt><dd>{{ result.waiver.reason }}{{ (' (' ~ result.waiver.reference ~ ')') if result.waiver.reference }}{{ (', expires ' ~ result.waiver.expires) if result.waiver.expires }}</dd>{% endif %}
+{%- if result.expired_waiver %}<dt>Waiver</dt><dd>Expired {{ result.expired_waiver.expires }}, so not applied: {{ result.expired_waiver.reason }}</dd>{% endif %}
+{%- for limit in result.limits if limit.breaches %}<dt>Limit</dt><dd>{{ limit.breaches | join('; ') }}</dd>{% endfor %}
+</dl>
+{%- if result.output %}<pre>{{ result.output | cut }}</pre>{% endif %}
+</details>
+{%- endif %}
+{%- endmacro -%}
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{ policy }}">
+<title>{{ report.title }} | Libre DevOps</title>
+<style>{{ style | safe }}</style></head><body>
+<header><div class="brand">Libre DevOps test results</div><h1>{{ report.title }}</h1>
+<span class="verdict {{ 'ok' if report.verdict == 'passed' else 'err' }}">{{ report.verdict | upper }}</span>
+<span class="sub">{{ s.hosts_passed }} of {{ s.hosts | plural('host') }} passed, generated {{ report.generated }}</span></header>
+<main>
+<div class="cards">
+<div class="card {{ 'ok' if s.hosts_failed == 0 else 'err' }}"><b>{{ s.hosts_passed }}/{{ s.hosts }}</b><span>hosts passed</span></div>
+<div class="card"><b>{{ s.ran }}</b><span>checks ran</span></div>
+<div class="card ok"><b>{{ s.passed }}</b><span>passed</span></div>
+{% if s.failed %}<div class="card err"><b>{{ s.failed }}</b><span>failed</span></div>{% endif %}
+{% if s.error %}<div class="card err"><b>{{ s.error }}</b><span>errors</span></div>{% endif %}
+{% if s.warning %}<div class="card warn"><b>{{ s.warning }}</b><span>warnings</span></div>{% endif %}
+{% if s.waived %}<div class="card"><b>{{ s.waived }}</b><span>waived</span></div>{% endif %}
+<div class="card"><b>{{ s.skipped }}</b><span>skipped</span></div>
+{% if s.pass_rate is not none %}<div class="card"><b>{{ s.pass_rate | number }}%</b><span>pass rate</span></div>{% endif %}
+</div>
+{% if report.verdict == 'failed' %}
+<div class="notes">
+{% for host in report.hosts if host.verdict == 'failed' %}<p><b>{{ host.host }}</b>: {{ host.reasons | join(' ') }}</p>{% endfor %}
+{% for reason in report.reasons %}<p>{{ reason }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<section class="panel"><h2>Hosts</h2>{{ toolbar() }}<div class="scroll"><table class="sortable"><thead><tr>
+<th>Host</th><th>Label</th><th>Platform</th><th>Verdict</th><th>Passed</th><th>Failed</th><th>Errors</th><th>Warnings</th><th>Waived</th><th>Skipped</th><th>Pass rate</th>
+</tr></thead><tbody>
+{% for host in report.hosts %}{% set t = host.summary %}{% set f = host.facts %}
+<tr{{ ' class="err"' | safe if host.verdict == 'failed' }}><td class="nowrap">{{ host.host }}</td><td>{{ host.label }}</td>
+<td>{{ [f.get('distribution', ''), f.get('distribution_version', '')] | select | join(' ') }}{{ (' (' ~ f.architecture ~ ')') if f.get('architecture') }}</td>
+<td><span class="pill {{ 'ok' if host.verdict == 'passed' else 'err' }}">{{ host.verdict | capitalize }}</span>{% if host.reasons %}<details><summary>Why</summary><p>{{ host.reasons | join(' ') }}</p></details>{% endif %}</td>
+<td>{{ t.passed }}</td><td>{{ t.failed }}</td><td>{{ t.error }}</td><td>{{ t.warning }}</td><td>{{ t.waived }}</td><td>{{ t.skipped }}</td>
+<td data-value="{{ t.pass_rate if t.pass_rate is not none else -1 }}">{{ (t.pass_rate | number ~ '%') if t.pass_rate is not none else '' }}</td></tr>
+{% endfor %}
+</tbody></table></div></section>
+
+{% if attention %}
+<section class="panel"><h2>Needs attention</h2><p class="lead">Failures and errors count against the verdict; warnings are failures below the {{ report.policy.fail_severity }} severity threshold.</p>{{ toolbar() }}<div class="scroll"><table class="sortable"><thead><tr>
+<th>Host</th><th>Severity</th><th>Check</th><th>Outcome</th><th>Detail</th>
+</tr></thead><tbody>
+{% for result in attention %}
+<tr class="{{ 'warn' if result.outcome == 'warning' else 'err' }}"><td class="nowrap">{{ result.host }}</td>{{ severity(result) }}
+<td>{{ result.name }}<br><code>{{ result.suite }}/{{ result.id }}</code></td><td>{{ outcome(result.outcome) }}</td>
+<td>{{ result.detail or '' }}{{ more(result) }}</td></tr>
+{% endfor %}
+</tbody></table></div></section>
+{% endif %}
+
+{% set waived = report.results | selectattr('outcome', 'equalto', 'waived') | list %}
+{% if waived %}
+<section class="panel"><h2>Accepted by a waiver</h2><p class="lead">These failed, but a waiver accepts them, so they do not count against the verdict.</p>{{ toolbar() }}<div class="scroll"><table class="sortable"><thead><tr>
+<th>Host</th><th>Severity</th><th>Check</th><th>Was</th><th>Detail</th><th>Waiver</th>
+</tr></thead><tbody>
+{% for result in waived %}
+<tr><td class="nowrap">{{ result.host }}</td>{{ severity(result) }}<td>{{ result.name }}<br><code>{{ result.suite }}/{{ result.id }}</code></td>
+<td>{{ result.status | capitalize }}</td><td>{{ result.detail or '' }}</td>
+<td>{{ result.waiver.reason }}{{ (' (' ~ result.waiver.reference ~ ')') if result.waiver.reference }}{{ (', expires ' ~ result.waiver.expires) if result.waiver.expires }}</td></tr>
+{% endfor %}
+</tbody></table></div></section>
+{% endif %}
+
+{% if report.comparison %}{% set c = report.comparison %}
+{% set moved = report.results | selectattr('change', 'in', ['regressed', 'fixed']) | list %}
+<section class="panel"><h2>Changes since the previous report</h2><p class="lead">Compared with {{ c.previous_title or 'the previous report' }}{{ (', generated ' ~ c.previous_generated) if c.previous_generated }}: {{ c.regressed }} regressed, {{ c.fixed }} fixed, {{ c.new }} new, {{ c.missing | length }} no longer reported.</p>
+{% if moved or c.missing %}{{ toolbar() }}<div class="scroll"><table class="sortable"><thead><tr><th>Host</th><th>Check</th><th>Before</th><th>Now</th></tr></thead><tbody>
+{% for result in moved %}<tr class="{{ 'err' if result.change == 'regressed' }}"><td>{{ result.label }}</td><td><code>{{ result.suite }}/{{ result.id }}</code></td><td>{{ (result.previous.outcome or '') | capitalize }}</td><td>{{ outcome(result.outcome) }}</td></tr>{% endfor %}
+{% for item in c.missing %}<tr class="warn"><td>{{ item.label }}</td><td><code>{{ item.suite }}/{{ item.id }}</code></td><td>{{ (item.outcome or '') | capitalize }}</td><td><span class="pill warn">Not reported</span></td></tr>{% endfor %}
+</tbody></table></div>{% endif %}</section>
+{% endif %}
+
+<section class="panel"><h2>All results</h2>{{ toolbar() }}<div class="scroll"><table class="sortable"><thead><tr>
+<th>Host</th><th>Suite</th><th>Check</th><th>Category</th><th>Severity</th><th>Outcome</th><th>Detail</th><th>Metrics</th>
+</tr></thead><tbody>
+{% for result in report.results %}
+<tr{{ (' class="' ~ ('warn' if result.outcome == 'warning' else 'err') ~ '"') | safe if result.outcome in ['failed', 'error', 'warning'] }}>
+<td class="nowrap">{{ result.host }}</td><td>{{ result.suite }}</td><td>{{ result.name }}<br><code>{{ result.id }}</code></td><td>{{ result.category or '' }}</td>
+{{ severity(result) }}<td>{{ outcome(result.outcome) }}</td><td>{{ result.detail or '' }}{{ more(result) }}</td><td><code>{{ metrics(result) }}</code></td></tr>
+{% endfor %}
+</tbody></table></div></section>
+
+{% for suite in report.suites if suite.properties %}
+{% if loop.first %}<section class="panel"><h2>What was tested</h2>{{ toolbar() }}<div class="scroll"><table class="sortable"><thead><tr><th>Host</th><th>Suite</th><th>Property</th><th>Value</th></tr></thead><tbody>{% endif %}
+{% for key, value in suite.properties | dictsort %}<tr><td class="nowrap">{{ suite.host }}</td><td>{{ suite.name }}</td><td>{{ key }}</td><td>{{ value if value is string else (value | tojson) }}</td></tr>{% endfor %}
+{% if loop.last %}</tbody></table></div></section>{% endif %}
+{% endfor %}
+
+<section class="panel"><h2>How it was judged</h2><div class="scroll"><table class="kv"><tbody>
+<tr><td>Failures that count</td><td>{{ report.policy.fail_severity | capitalize }} severity and above{{ ' (lower ones are warnings)' if report.policy.fail_severity != 'info' }}</td></tr>
+<tr><td>Failures allowed per host</td><td>{{ report.policy.max_failures }}</td></tr>
+<tr><td>Minimum pass rate per host</td><td>{{ (report.policy.min_pass_rate | number ~ '%') if report.policy.min_pass_rate else 'None' }}</td></tr>
+<tr><td>Minimum checks run per host</td><td>{{ report.policy.min_checks }}</td></tr>
+<tr><td>Failed hosts allowed</td><td>{{ report.policy.max_failed_hosts }}</td></tr>
+<tr><td>Expected checks</td><td>{{ report.policy.expected_checks | join(', ') or 'None' }}</td></tr>
+{% for limit in report.limits %}<tr><td>Limit on <code>{{ limit.check }}</code> {{ limit.metric }}</td><td>{{ [('at least ' ~ (limit.min | number)) if limit.min is not none, ('at most ' ~ (limit.max | number)) if limit.max is not none, ('rises at most ' ~ (limit.max_increase_percent | number) ~ '%') if limit.max_increase_percent is not none, ('falls at most ' ~ (limit.max_decrease_percent | number) ~ '%') if limit.max_decrease_percent is not none] | select | join(', ') }}; checked {{ limit.evaluated }}, breached {{ limit.breached }}, could not check {{ limit.not_evaluated }}</td></tr>{% endfor %}
+{% for waiver in report.waivers %}<tr><td>Waiver for <code>{{ waiver.check }}</code></td><td>{{ waiver.reason }}{{ (' (' ~ waiver.reference ~ ')') if waiver.reference }}; {{ {'active': 'applied', 'unused': 'unused', 'expired': 'EXPIRED, not applied'}[waiver.state] }}{{ (', expires ' ~ waiver.expires) if waiver.expires }}; used {{ waiver.matched }}</td></tr>{% endfor %}
+{% for key, value in report.properties | dictsort %}<tr><td>{{ key }}</td><td>{% if value is link %}<a href="{{ value }}" rel="noopener noreferrer">{{ value }}</a>{% else %}{{ value if value is string else (value | tojson) }}{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></section>
+</main>
+<footer>Generated {{ report.generated }} by libre_devops.test_results_report ({{ report.schema }}). Outcomes: Failed and Error count against the verdict; Warning is a failure below the severity threshold; Waived is a failure a waiver accepts; Skipped did not run. The JSON report has every field.</footer>
+<script>{{ script | safe }}</script></body></html>

@@ -451,6 +451,66 @@ def test_markdown_template_can_be_replaced(tmp_path):
     assert (tmp_path / "test-results.md").read_text() == "passed 1\n"
 
 
+def test_html_is_one_self_contained_page_that_runs_only_its_own_style_and_script(tmp_path):
+    import base64
+    import hashlib
+    import re
+    from html.parser import HTMLParser
+
+    policy = busy_host(tmp_path)
+    trr.run(
+        {
+            "dir": str(tmp_path),
+            "policy": policy,
+            "title": "Demo <b>bold</b>",
+            "formats": ["html"],
+            "properties": {"run": "https://example.org/run/1", "bad": "javascript:alert(1)"},
+        },
+        now=NOW,
+    )
+    page = (tmp_path / "test-results.html").read_text()
+
+    class Collect(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.tags, self.data, self.current = [], {}, None
+
+        def handle_starttag(self, tag, attrs):
+            self.tags.append((tag, dict(attrs)))
+            self.current = tag
+
+        def handle_data(self, data):
+            if self.current in ("style", "script"):
+                self.data[self.current] = self.data.get(self.current, "") + data
+
+    found = Collect()
+    found.feed(page)
+    # Nothing is fetched: no external script, stylesheet, image or font.
+    assert not [a for tag, a in found.tags if a.get("src") or (tag == "link" and a.get("href"))]
+    policy_meta = next(a["content"] for tag, a in found.tags if tag == "meta" and a.get("http-equiv") == "Content-Security-Policy")
+    for kind in ("style", "script"):
+        digest = base64.b64encode(hashlib.sha256(found.data[kind].encode()).digest()).decode()
+        assert f"{kind}-src 'sha256-{digest}'" in policy_meta
+    assert "default-src 'none'" in policy_meta
+    # Every value from the results is escaped, and only web links become links.
+    assert "<b>bold</b>" not in page and "Demo &lt;b&gt;bold&lt;/b&gt;" in page
+    assert "a \\| b" not in page and "a | b &lt;c&gt;" in page
+    hrefs = [a["href"] for tag, a in found.tags if tag == "a"]
+    assert hrefs == ["https://example.org/doc", "https://example.org/doc", "https://example.org/run/1"]
+    assert "javascript:alert(1)" in page  # shown as text, not as a link
+    assert re.search(r'<span class="verdict err">FAILED</span>', page)
+
+
+def test_csv_has_one_row_per_result(tmp_path):
+    import csv
+
+    trr.run({"dir": str(tmp_path), "policy": busy_host(tmp_path), "formats": ["csv"]}, now=NOW)
+    rows = list(csv.DictReader((tmp_path / "test-results.csv").open()))
+    assert len(rows) == 6 and rows[0]["host"] == "vm1" and rows[0]["outcome"] == "passed"
+    accepted = next(r for r in rows if r["id"] == "accepted")
+    assert accepted["outcome"] == "waived" and accepted["waiver"] == "Ticket open"
+
+
 def test_formats_and_basename(tmp_path):
     write_host(tmp_path, "vm1", [suite([check("a")])])
     outcome = trr.run({"dir": str(tmp_path), "formats": ["junit"], "basename": "mdatp"}, now=NOW)

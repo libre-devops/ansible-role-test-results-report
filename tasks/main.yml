@@ -80,6 +80,7 @@
           expected_hosts: "{{ ansible_play_batch | union(ansible_play_hosts_all | difference(ansible_play_hosts)) }}"
           compare_to: "{{ test_results_report_compare_to }}"
           markdown_template: "{{ test_results_report_markdown_template }}"
+          html_template: "{{ test_results_report_html_template }}"
           output_limit: "{{ test_results_report_output_limit | int }}"
           github_step_summary: >-
             {{ lookup('ansible.builtin.env', 'GITHUB_STEP_SUMMARY', default='')

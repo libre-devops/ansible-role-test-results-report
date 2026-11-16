@@ -9,7 +9,14 @@
 
 # Ansible Role: Test results report
 
-Collects the results that checks roles leave on each host into one report, judges it against thresholds you set, and writes it on the control node three ways: **JSON** for pipelines to parse, **Markdown** for people to read, and **JUnit XML** for CI test views. It fails the play when the results do not meet the thresholds.
+Collects the results that checks roles leave on each host into one report, judges it against thresholds you set, and writes it on the control node for whoever needs it:
+- **JSON** for pipelines to parse;
+- an **HTML** page for people, self-contained so it opens anywhere and can be emailed;
+- **Markdown** for the CI job summary;
+- **JUnit XML** for CI test views;
+- **CSV** for a spreadsheet, if asked for.
+
+It fails the play when the results do not meet the thresholds.
 
 It runs no checks itself. Checks roles such as [libre_devops.mde_linux_checks](https://github.com/libre-devops/ansible-role-mde-linux-checks) do the testing and leave their results in a documented format; this role reads any role's results in that format, so one report covers every product a test touches.
 
@@ -32,6 +39,7 @@ It runs no checks itself. Checks roles such as [libre_devops.mde_linux_checks](h
 - [Limits on metrics](#limits-on-metrics)
 - [Comparing with an earlier run](#comparing-with-an-earlier-run)
 - [The report files](#the-report-files)
+- [The HTML report](#the-html-report)
 - [Reading the report in a pipeline](#reading-the-report-in-a-pipeline)
 - [Several runs, one report](#several-runs-one-report)
 - [Writing a checks role](#writing-a-checks-role)
@@ -44,7 +52,7 @@ It runs no checks itself. Checks roles such as [libre_devops.mde_linux_checks](h
 
 1. On each host, finds the facts whose names end in `_test_results` (or the ones you name), which is where checks roles leave their results.
 2. Writes each host's results, with a few facts about the host (distribution, kernel, size), to `<dir>/hosts/<host>.json` on the control node.
-3. Once per play, builds the report from every host file in the directory, applying your thresholds, waivers and limits, and writes `test-results.json`, `test-results.md` and `test-results.xml`. In GitHub Actions it also puts the Markdown in the job summary.
+3. Once per play, builds the report from every host file in the directory, applying your thresholds, waivers and limits, and writes `test-results.json`, `test-results.html`, `test-results.md` and `test-results.xml` (and `test-results.csv` if asked). In GitHub Actions it also puts the Markdown in the job summary.
 4. Shows a short summary in the Ansible output and sets the `test_results_report_result` fact.
 5. Fails the play if the report failed, naming the hosts and the reasons.
 
@@ -84,7 +92,7 @@ Run the checks, then the report, in one play:
         test_results_report_dir: "{{ playbook_dir }}/artifacts/test-results"
 ```
 
-The play fails if any check fails. The report is in `artifacts/test-results/`: open `test-results.md` first.
+The play fails if any check fails. The report is in `artifacts/test-results/`: open `test-results.html` first.
 
 ## How a result is judged
 
@@ -216,16 +224,22 @@ test_results_report_host_label: rhel9
 
 ## The report files
 
-All three files are written to `test_results_report_dir`, with `test_results_report_basename` as the name:
+The files `test_results_report_formats` asks for (by default `json`, `html`, `markdown` and `junit`) are written to `test_results_report_dir`, with `test_results_report_basename` as the name:
 
 | File | For | What is in it |
 |---|---|---|
-| `test-results.md` | People | The verdict and one-line summary first, then why it failed, then a table of hosts. After that come the checks that need attention, ordered by severity, with what was expected, what was seen, what to do and the evidence. Then the waived failures, any changes since the earlier run, every result per host with the suite's properties (the product version, for example), and how the verdict was reached. It is shown in the GitHub job summary too. |
+| `test-results.html` | People | One self-contained page, in the same style as `ldo-cli -o html`, in light or dark to match the reader's system:<ul><li>the verdict and counts, then why it failed;</li><li>tables of the hosts, what needs attention (each failure with what was expected, what was seen, what to do, the documentation and the evidence), waived failures, changes since the earlier run, every result, and what was tested;</li><li>how the verdict was reached.</li></ul>Every table can be filtered, sorted by any column and copied as CSV. It fetches nothing (no fonts, styles or scripts from anywhere), and its content security policy lets only its own style and script run, so it opens offline, from an email or behind a proxy, and nothing in the results can add a script. It prints cleanly. See [The HTML report](#the-html-report). |
+| `test-results.md` | People and the job summary | The verdict and one-line summary first, then why it failed, then a table of hosts. After that come the checks that need attention, ordered by severity, with what was expected, what was seen, what to do and the evidence. Then the waived failures, any changes since the earlier run, every result per host with the suite's properties (the product version, for example), and how the verdict was reached. It is shown in the GitHub job summary too. |
 | `test-results.json` | Pipelines | Everything, in three flat tables (`hosts`, `suites`, `results`) plus the `summary`, the `policy` applied, the `waivers` and `limits` with how often each matched, and the `comparison`. Every key is always present, with `null` for no value. The format is versioned (`schema: libre_devops.test_results_report/v1`) and published as a JSON Schema: [`files/schemas/test-results-report.schema.json`](./files/schemas/test-results-report.schema.json). |
 | `test-results.xml` | CI test views | JUnit XML: one `<testsuite>` per host and suite, one `<testcase>` per check, named `<id>: <name>` with classname `<host>.<suite>`. Only failures that count are `<failure>` or `<error>`. Waived, warning and skipped results are `<skipped>` with a message saying which, so a CI tool that fails on test failures agrees with the verdict. A host that sent nothing is an `<error>`. |
+| `test-results.csv` | Spreadsheets | Not written by default: add `csv` to `test_results_report_formats`. One row per result: host, label, suite, check id and name, category, severity, status, outcome, detail, expected, actual, what to do, documentation, metrics, duration, waiver and change since the earlier run. |
 | `hosts/<host>.json` | Rebuilding | Each host's results as the checks roles reported them. |
 
 Every result in the JSON carries both what the checks role reported (`reported_status`, `reported_severity`) and what the report made of it (`status` and `severity` after limits, then `outcome`), so a pipeline can apply a policy of its own to the raw results.
+
+## The HTML report
+
+The report is generated: give each run's `test-results.html` to the people who need it, attach it to a change record, or publish it beside the pipeline's artifacts. Nothing has to be served. Its look comes from [`templates/test-results.html.j2`](./templates/test-results.html.j2) and [`files/html/`](./files/html/). For your own branding or layout, copy the template and point `test_results_report_html_template` at it. It renders the same JSON report, with every value escaped.
 
 ## Reading the report in a pipeline
 
@@ -343,7 +357,7 @@ Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_
 |---|---|---|
 | `test_results_report_dir` | `{{ playbook_dir }}/test-results` | Directory on the control node for the report. One per run: hosts an earlier run left in it are reported too. A relative path is under the playbook's directory. |
 | `test_results_report_basename` | `test-results` | The files' name, without an extension. |
-| `test_results_report_formats` | `[json, markdown, junit]` | Which files to write. |
+| `test_results_report_formats` | `[json, html, markdown, junit]` | Which files to write: `json`, `html`, `markdown`, `junit`, `csv`. |
 | `test_results_report_title` | `Test results` | The report's title. |
 | `test_results_report_properties` | `{}` | What to record with the report: the version tested, the pipeline run, the commit. |
 | `test_results_report_facts` | `[]` | The facts that hold each host's results. Empty finds every fact ending in `_test_results`. |
@@ -360,6 +374,7 @@ Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_
 | `test_results_report_enforce` | `true` | Fail the play when the report fails. |
 | `test_results_report_github_step_summary` | `true` | In GitHub Actions, put the Markdown in the job summary. Several runs in one step replace each other's copy rather than adding to it. |
 | `test_results_report_markdown_template` | `""` | Your own Jinja2 template for the Markdown. The role's, [`templates/test-results.md.j2`](./templates/test-results.md.j2), is the place to start. |
+| `test_results_report_html_template` | `""` | Your own Jinja2 template for the HTML, rendered with autoescaping. The role's, [`templates/test-results.html.j2`](./templates/test-results.html.j2), is the place to start. |
 | `test_results_report_output_limit` | `4000` | The most characters of a check's output the Markdown shows. |
 
 | Fact | What it holds |
