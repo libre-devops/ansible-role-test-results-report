@@ -4,6 +4,10 @@ Notable changes to this role. The format follows [Keep a Changelog](https://keep
 
 ## Unreleased
 
+### Added
+
+- Diagrams: Mermaid flowcharts in the README (how the report is built, and how a result is judged), and `docs/diagrams/test-results-report.drawio` with the same two pages in more detail.
+
 ## 1.0.0 - 2026-11-16
 
 ### Added

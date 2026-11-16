@@ -1,0 +1,256 @@
+<mxfile host="drawio" agent="libre-devops" version="24.7.17" type="device">
+  <diagram name="How the report is built" id="how-the-report-is-built">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c2" value="libre_devops.test_results_report: from results to a verdict" style="text;html=1;align=left;verticalAlign=top;fontSize=26;fontStyle=1;fontColor=#1E3A8A;" parent="1" vertex="1">
+          <mxGeometry x="40" y="20" width="1500" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="Checks roles leave results on each host; this role turns them into one report, judged against your thresholds. Everything happens on the control node." style="text;html=1;align=left;verticalAlign=top;fontSize=14;fontColor=#4D4D4D;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="40" y="62" width="1500" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="Managed hosts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F2F8FF;strokeColor=#0078D4;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=14;container=1;collapsible=0;arcSize=3;" parent="1" vertex="1">
+          <mxGeometry x="40" y="130" width="380" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="" style="image;aspect=fixed;html=1;points=[];fontSize=12;image=img/lib/mscae/VM_Linux.svg;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;whiteSpace=wrap;labelWidth=160;" parent="c4" vertex="1">
+          <mxGeometry x="20" y="70" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="&lt;b&gt;rhel9-test&lt;/b&gt;&lt;br&gt;mde_linux_checks_test_results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="c4" vertex="1">
+          <mxGeometry x="100" y="50" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="" style="image;aspect=fixed;html=1;points=[];fontSize=12;image=img/lib/mscae/VM_Linux.svg;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;whiteSpace=wrap;labelWidth=160;" parent="c4" vertex="1">
+          <mxGeometry x="20" y="235" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="&lt;b&gt;rhel8-test&lt;/b&gt;&lt;br&gt;mde_linux_checks_test_results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="c4" vertex="1">
+          <mxGeometry x="100" y="215" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="" style="image;aspect=fixed;html=1;points=[];fontSize=12;image=img/lib/mscae/VM_Linux.svg;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;whiteSpace=wrap;labelWidth=160;" parent="c4" vertex="1">
+          <mxGeometry x="20" y="400" width="56" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;web01&lt;/b&gt;&lt;br&gt;&amp;lt;any checks role&amp;gt;_test_results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="c4" vertex="1">
+          <mxGeometry x="100" y="380" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;i&gt;The format is libre_devops.test_results/v1: any role can write it (see &quot;Writing a checks role&quot;).&lt;/i&gt;" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=11;fontColor=#333333;" parent="c4" vertex="1">
+          <mxGeometry x="20" y="510" width="340" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="Control node" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=14;container=1;collapsible=0;arcSize=3;" parent="1" vertex="1">
+          <mxGeometry x="460" y="130" width="660" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1E3A8A;strokeColor=#1E3A8A;fontColor=#FFFFFF;fontStyle=1;fontSize=14;" parent="c12" vertex="1">
+          <mxGeometry x="20" y="50" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="&lt;b&gt;Collect&lt;/b&gt;&lt;br&gt;Each host's facts whose names end in _test_results, or the ones you name." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c12" vertex="1">
+          <mxGeometry x="60" y="50" width="580" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="2" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1E3A8A;strokeColor=#1E3A8A;fontColor=#FFFFFF;fontStyle=1;fontSize=14;" parent="c12" vertex="1">
+          <mxGeometry x="20" y="145" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="&lt;b&gt;Write one file per host&lt;/b&gt;&lt;br&gt;hosts/&amp;lt;host&amp;gt;.json: the results, plus the host's distribution, kernel and size. Under a lock, so runs that share the directory add up to one report." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c12" vertex="1">
+          <mxGeometry x="60" y="145" width="580" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="3" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1E3A8A;strokeColor=#1E3A8A;fontColor=#FFFFFF;fontStyle=1;fontSize=14;" parent="c12" vertex="1">
+          <mxGeometry x="20" y="255" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c18" value="&lt;b&gt;Build the report, once per play&lt;/b&gt;&lt;br&gt;From every host file in the directory, applying your thresholds, waivers and limits; compared with an earlier run if you give one." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c12" vertex="1">
+          <mxGeometry x="60" y="255" width="580" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="4" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1E3A8A;strokeColor=#1E3A8A;fontColor=#FFFFFF;fontStyle=1;fontSize=14;" parent="c12" vertex="1">
+          <mxGeometry x="20" y="365" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c20" value="&lt;b&gt;Write the files&lt;/b&gt;&lt;br&gt;The formats you ask for, and the Markdown into the GitHub job summary." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c12" vertex="1">
+          <mxGeometry x="60" y="365" width="580" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c21" value="5" style="ellipse;whiteSpace=wrap;html=1;fillColor=#1E3A8A;strokeColor=#1E3A8A;fontColor=#FFFFFF;fontStyle=1;fontSize=14;" parent="c12" vertex="1">
+          <mxGeometry x="20" y="450" width="30" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="&lt;b&gt;The verdict&lt;/b&gt;&lt;br&gt;test_results_report_result for later tasks. The play fails when the report fails, naming the hosts and the reasons." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c12" vertex="1">
+          <mxGeometry x="60" y="450" width="580" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c6" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c8" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c10" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c14" target="c16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c27" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c16" target="c18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c28" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c18" target="c20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c29" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c20" target="c22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c30" value="Who reads it" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=14;container=1;collapsible=0;arcSize=3;" parent="1" vertex="1">
+          <mxGeometry x="1160" y="130" width="450" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="c31" value="&lt;b&gt;test-results.html&lt;/b&gt;&lt;br&gt;People: one self-contained page, light or dark, like ldo-cli -o html." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;shape=document;" parent="c30" vertex="1">
+          <mxGeometry x="20" y="50" width="410" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c32" value="&lt;b&gt;test-results.md&lt;/b&gt;&lt;br&gt;People and the job summary: the verdict first, then why." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;shape=document;" parent="c30" vertex="1">
+          <mxGeometry x="20" y="150" width="410" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c33" value="&lt;b&gt;test-results.json&lt;/b&gt;&lt;br&gt;Pipelines: every result, the policy and the summary, for jq or a gate of your own." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;shape=document;" parent="c30" vertex="1">
+          <mxGeometry x="20" y="250" width="410" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c34" value="&lt;b&gt;test-results.xml&lt;/b&gt;&lt;br&gt;CI test views: JUnit for GitHub, GitLab and Azure Pipelines." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;shape=document;" parent="c30" vertex="1">
+          <mxGeometry x="20" y="350" width="410" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c35" value="&lt;b&gt;On request&lt;/b&gt;&lt;br&gt;csv for spreadsheets; env (GitLab dotenv) and prom (metrics); GitLab annotations." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c30" vertex="1">
+          <mxGeometry x="20" y="450" width="410" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c20" target="c30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c37" value="&lt;b&gt;Several runs, one report&lt;/b&gt;&lt;br&gt;terraform-ansible-role runs one ansible-playbook per VM, in parallel: RHEL 8 and RHEL 9 at once, say. Each run writes its host's file and rebuilds the report under the lock, so the last to finish leaves the complete report. Give each run its own directory, such as the plan's timestamp." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="40" y="730" width="700" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c38" value="&lt;b&gt;Comparing with an earlier run&lt;/b&gt;&lt;br&gt;Point test_results_report_compare_to at last month's test-results.json. Each check is then new, fixed, regressed or unchanged, and checks that silently stopped running are listed. Hosts are matched on a stable label, since release tests build new VMs each time." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="780" y="730" width="830" height="110" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="How a result is judged" id="how-a-result-is-judged">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c2" value="How a result is judged" style="text;html=1;align=left;verticalAlign=top;fontSize=26;fontStyle=1;fontColor=#1E3A8A;" parent="1" vertex="1">
+          <mxGeometry x="40" y="20" width="1500" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="A checks role reports a status and a severity. The report turns each result into an outcome, then each host into a verdict, then the run." style="text;html=1;align=left;verticalAlign=top;fontSize=14;fontColor=#4D4D4D;whiteSpace=wrap;" parent="1" vertex="1">
+          <mxGeometry x="40" y="62" width="1500" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="&lt;b&gt;A check's result&lt;/b&gt;&lt;br&gt;status: passed, failed, error or skipped&lt;br&gt;severity: critical, high, medium, low, info&lt;br&gt;metrics, if it measures something" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="330" y="140" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="A limit on one of&lt;br&gt;its metrics breached?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E3A8A;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;shape=rhombus;" parent="1" vertex="1">
+          <mxGeometry x="380" y="270" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="It now counts as &lt;b&gt;failed&lt;/b&gt;&lt;br&gt;(&lt;b&gt;error&lt;/b&gt; if the metric was not reported)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="720" y="290" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="Its status?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E3A8A;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;shape=rhombus;" parent="1" vertex="1">
+          <mxGeometry x="380" y="420" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" value="An unexpired waiver&lt;br&gt;covers it?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E3A8A;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;shape=rhombus;" parent="1" vertex="1">
+          <mxGeometry x="380" y="580" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" value="Severity at or above&lt;br&gt;fail_severity?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#1E3A8A;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;shape=rhombus;" parent="1" vertex="1">
+          <mxGeometry x="380" y="740" width="240" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" value="&lt;b&gt;Passed&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="60" y="420" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" value="&lt;b&gt;Skipped&lt;/b&gt;&lt;br&gt;with the reason" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="60" y="490" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" value="&lt;b&gt;Waived&lt;/b&gt;&lt;br&gt;listed with its reason, reference and expiry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="60" y="600" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c13" value="&lt;b&gt;Warning&lt;/b&gt;&lt;br&gt;below the line that counts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="60" y="765" width="220" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c14" value="&lt;b&gt;Failed&lt;/b&gt; or &lt;b&gt;Error&lt;/b&gt;&lt;br&gt;counts against the host's verdict" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;align=center;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="360" y="900" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c4" target="c5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c16" value="yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c5" target="c6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c6" target="c8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="860" y="635" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c18" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c5" target="c7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c19" value="passed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c7" target="c10">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="475" />
+              <mxPoint x="330" y="445" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c20" value="skipped" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c7" target="c11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="475" />
+              <mxPoint x="330" y="515" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c21" value="failed or error" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c7" target="c8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c22" value="yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c8" target="c12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c23" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c8" target="c9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c24" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c9" target="c13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c25" value="yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c9" target="c14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c26" value="Then each host: failed if any of these" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF5F5;strokeColor=#b85450;verticalAlign=top;align=left;spacingLeft=10;spacingTop=4;fontStyle=1;fontSize=14;container=1;collapsible=0;arcSize=3;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="140" width="550" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="c27" value="&lt;b&gt;max_failures&lt;/b&gt;: more failures and errors that count than this (default 0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c26" vertex="1">
+          <mxGeometry x="20" y="45" width="510" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c28" value="&lt;b&gt;min_pass_rate&lt;/b&gt;: the share of checks that ran and passed (or were waived) is below this %" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c26" vertex="1">
+          <mxGeometry x="20" y="100" width="510" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c29" value="&lt;b&gt;min_checks&lt;/b&gt;: fewer checks ran than this: everything skipped proves nothing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c26" vertex="1">
+          <mxGeometry x="20" y="155" width="510" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c30" value="&lt;b&gt;expected_checks&lt;/b&gt;: a check named here did not report, or was skipped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c26" vertex="1">
+          <mxGeometry x="20" y="210" width="510" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c31" value="&lt;b&gt;no results&lt;/b&gt;: the host was unreachable, or failed before the checks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="c26" vertex="1">
+          <mxGeometry x="20" y="265" width="510" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="c32" value="&lt;b&gt;Then the run&lt;/b&gt;&lt;br&gt;The report fails when more hosts fail than max_failed_hosts (default 0), or when no host reported. The play fails with it." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;align=left;verticalAlign=middle;spacing=6;arcSize=12;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="500" width="550" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c33" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1" source="c14" target="c26">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1010" y="935" />
+              <mxPoint x="1010" y="305" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#1E3A8A;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="c26" target="c32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c35" value="&lt;b&gt;A release test&lt;/b&gt;&lt;br&gt;fail_severity: low&lt;br&gt;expected_checks: real_time_protection, eicar_detection, service_survives_reboot" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="620" width="550" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c36" value="&lt;b&gt;A health audit of an estate&lt;/b&gt;&lt;br&gt;fail_severity: high, and max_failed_hosts: 2 of a hundred servers (they are in the report either way)" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="720" width="550" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c37" value="&lt;b&gt;A large compliance suite&lt;/b&gt;&lt;br&gt;max_failures: 50, and min_pass_rate: 95" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacing=8;" parent="1" vertex="1">
+          <mxGeometry x="1060" y="820" width="550" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

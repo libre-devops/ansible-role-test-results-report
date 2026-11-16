@@ -60,6 +60,32 @@ It runs no checks itself. Checks roles such as [libre_devops.mde_linux_checks](h
 
 Everything happens on the control node. The managed hosts need nothing.
 
+```mermaid
+flowchart LR
+    subgraph hosts["Managed hosts"]
+        rhel9["rhel9-test<br/>mde_linux_checks_test_results"]
+        rhel8["rhel8-test<br/>mde_linux_checks_test_results"]
+    end
+
+    subgraph control["Control node"]
+        files[("hosts/*.json<br/>one per host, under a lock")]
+        build["Build the report:<br/>thresholds, waivers, limits,<br/>compare with an earlier run"]
+        verdict{"Verdict"}
+    end
+
+    rhel9 --> files
+    rhel8 --> files
+    files --> build
+    build --> outputs[/"HTML: people<br/>Markdown: the job summary<br/>JSON: pipelines<br/>JUnit: CI test views"/]
+    build --> verdict
+    verdict -->|"passed"| carry(["The play carries on"])
+    verdict -->|"failed"| stop(["The play fails, naming<br/>the hosts and the reasons"])
+```
+
+The draw.io version, [`docs/diagrams/test-results-report.drawio`](docs/diagrams/test-results-report.drawio),
+has two pages: how the report is built, and how a result is judged. Open it in
+[draw.io](https://app.diagrams.net) or the desktop app; GitHub does not draw `.drawio` files.
+
 ## Requirements
 
 | What | Detail |
@@ -119,6 +145,30 @@ The report then gives every result an **outcome**, which is what it means for th
 | Warning | It failed or errored below that severity. | No |
 | Waived | It failed or errored, and a waiver accepts it. | No |
 | Skipped | It was skipped. | No |
+
+In order, for each result:
+
+```mermaid
+flowchart TD
+    result["A check's result:<br/>status, severity, metrics"] --> limit{"A limit on one of<br/>its metrics breached?"}
+    limit -->|"yes"| breached["It counts as failed<br/>(error if the metric was not reported)"]
+    breached --> waiver
+    limit -->|"no"| status{"Its status?"}
+    status -->|"passed"| passed(["Passed"])
+    status -->|"skipped"| skipped(["Skipped"])
+    status -->|"failed or error"| waiver{"An unexpired waiver<br/>covers it?"}
+    waiver -->|"yes"| waived(["Waived"])
+    waiver -->|"no"| severity{"Severity at or above<br/>fail_severity?"}
+    severity -->|"no"| warning(["Warning"])
+    severity -->|"yes"| counts(["Failed or Error:<br/>counts against the verdict"])
+
+    classDef good fill:#d5e8d4,stroke:#82b366,color:#000
+    classDef bad fill:#f8cecc,stroke:#b85450,color:#000
+    classDef soft fill:#fff2cc,stroke:#d6b656,color:#000
+    class passed,waived good
+    class counts bad
+    class warning,skipped soft
+```
 
 Each host gets a verdict: **failed** if any threshold below is not met, or if it sent no results at all (it was unreachable, or failed before the checks). The report fails when more hosts fail than `test_results_report_max_failed_hosts` allows, or when no host reported.
 
